@@ -36,15 +36,8 @@ export class EnvironmentManager {
         try {
             const installed = await this._pixiManager.isPixiInstalled();
             if (!installed) {
-                const selection = await vscode.window.showInformationMessage(
-                    "Pixi binary not found in workspace. Download it?",
-                    "Download", "Cancel"
-                );
-                if (selection === "Download") {
-                    await this._pixiManager.installPixi();
-                } else {
-                    return;
-                }
+                // Auto-download without prompt
+                await this._pixiManager.installPixi();
             }
 
             // Check if pixi.toml exists
@@ -70,8 +63,11 @@ export class EnvironmentManager {
                 term.sendText(`"${pixi}" install`);
             } else {
                 await this._pixiManager.initProject();
-                vscode.window.showInformationMessage("Pixi project initialized and environment created.");
+                vscode.window.showInformationMessage("Pixi project initialized.");
             }
+
+            // Auto-activate after creation/install
+            await this.activate();
 
         } catch (error: any) {
             vscode.window.showErrorMessage(`Failed to create environment: ${error.message}`);
@@ -151,16 +147,26 @@ export class EnvironmentManager {
 
         try {
             const cmd = `"${pixiPath}" shell-hook --shell bash${envName ? ` -e ${envName}` : ''}`;
-            const { stdout } = await this._exec(cmd, {
-                cwd: workspaceUri.fsPath
+
+            // Show progress
+            const location = silent ? vscode.ProgressLocation.Window : vscode.ProgressLocation.Notification;
+            const title = silent ? `Activating Pixi Environment: ${envName || 'default'}...` : "Activating Pixi Environment...";
+
+            const { stdout } = await vscode.window.withProgress({
+                location,
+                title,
+                cancellable: false
+            }, async () => {
+                return await this._exec(cmd, {
+                    cwd: workspaceUri.fsPath
+                });
             });
-
-
 
             // Parse exports
             // Output usually container 'export VAR=VALUE'
             // We need to handle quoted values.
             const lines = stdout.split('\n');
+
             const envUpdates = new Map<string, string>();
 
             for (const line of lines) {
@@ -186,8 +192,18 @@ export class EnvironmentManager {
             // Clear previous? Maybe not.
 
             for (const [key, value] of envUpdates) {
-                this._context.environmentVariableCollection.replace(key, value);
-                process.env[key] = value;
+                let finalValue = value;
+                if (key === 'PATH' && pixiPath) {
+                    // Ensure the local pixi binary is in the path
+                    const pixiBinDir = path.dirname(pixiPath);
+                    // Check if already in path (simple check)
+                    if (!value.includes(pixiBinDir)) {
+                        finalValue = `${pixiBinDir}${path.delimiter}${value}`;
+                    }
+                }
+
+                this._context.environmentVariableCollection.replace(key, finalValue);
+                process.env[key] = finalValue;
             }
 
 

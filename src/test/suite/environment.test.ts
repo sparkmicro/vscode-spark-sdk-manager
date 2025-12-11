@@ -43,6 +43,7 @@ suite('Environment Manager Test Suite', () => {
         };
 
         const mockPixi = new MockPixiManager();
+        mockPixi.getPixiPath = () => '/mock/workspace/.pixi/bin/pixi';
         class TestEnvironmentManager extends EnvironmentManager {
             public override getWorkspaceFolderURI(): vscode.Uri {
                 return vscode.Uri.file('/mock/workspace');
@@ -80,6 +81,10 @@ suite('Environment Manager Test Suite', () => {
         await envManager.activate(true);
 
         assert.strictEqual(envVarsReference.get('CONDA_PREFIX'), '/pixi/env');
+
+        // Verify pixi bin is in PATH
+        const pathVar = envVarsReference.get('PATH');
+        assert.ok(pathVar?.includes('/mock/workspace/.pixi/bin'), 'PATH should include pixi bin directory');
     });
 
     test('AutoActivate restores environment from state', async () => {
