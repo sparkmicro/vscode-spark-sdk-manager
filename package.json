@@ -1,0 +1,58 @@
+{
+  "name": "pixi-vscode",
+  "displayName": "Pixi VS Code",
+  "description": "Pixi integration for VS Code",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:pixi.createEnvironment",
+    "onCommand:pixi.activate",
+    "onCommand:pixi.deactivate",
+    "workspaceContains:pixi.toml"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pixi.createEnvironment",
+        "title": "Pixi: Create Environment"
+      },
+      {
+        "command": "pixi.activate",
+        "title": "Pixi: Activate Environment"
+      },
+      {
+        "command": "pixi.deactivate",
+        "title": "Pixi: Deactivate Environment"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "20.x",
+    "@types/proxyquire": "^1.3.31",
+    "@types/vscode": "^1.90.0",
+    "@typescript-eslint/eslint-plugin": "^7.11.0",
+    "@typescript-eslint/parser": "^7.11.0",
+    "@vscode/test-electron": "^2.4.0",
+    "eslint": "^8.57.0",
+    "glob": "^10.3.16",
+    "mocha": "^10.4.0",
+    "proxyquire": "^2.1.3",
+    "typescript": "^5.4.5"
+  }
+}
