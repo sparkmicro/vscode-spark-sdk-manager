@@ -98,9 +98,65 @@ export class EnvironmentManager {
     }
 
     public async autoActivate() {
-        const savedEnv = this._context.workspaceState.get<string>(EnvironmentManager.envStateKey);
+        let savedEnv = this._context.workspaceState.get<string>(EnvironmentManager.envStateKey);
+        this.log(`AutoActivate: Saved state is '${savedEnv}'`);
+
+        // If no saved environment from a previous session, check user configuration
+        if (!savedEnv) {
+            const config = vscode.workspace.getConfiguration('pixi');
+            const defaultEnv = config.get<string>('defaultEnvironment');
+            this.log(`AutoActivate: Configured default is '${defaultEnv}'`);
+
+            if (defaultEnv) {
+                // Verify the configured environment actually exists
+                const envs = await this.getEnvironments();
+                this.log(`AutoActivate: Available environments: ${envs.join(', ')}`);
+
+                if (envs.includes(defaultEnv)) {
+                    savedEnv = defaultEnv;
+                    this.log(`AutoActivate: Default environment '${defaultEnv}' found and selected.`);
+                } else if (envs.length === 0) {
+                    // If no environments were found (e.g., fresh checkout, no lockfile, pixi info failed),
+                    // but a default is configured, trust the configuration and attempt activation.
+                    // This allows 'pixi install' to run naturally during activation.
+                    savedEnv = defaultEnv;
+                    this.log(`AutoActivate: No environments discovered. Trusting configured default '${defaultEnv}' and proceeding.`);
+
+                    // Ensure pixi binary exists before attempting install/activate in this fresh scenario
+                    try {
+                        await this._pixiManager.ensurePixi();
+                    } catch (e) {
+                        this.log(`AutoActivate: Failed to ensure pixi binary: ${e}`);
+                    }
+
+                    // Force install because we know it's a fresh/empty state.
+                    // Also pass silent=false so the user gets the Reload Window prompt after this heavy operation.
+                    await this.doActivate(savedEnv, false, true);
+                    return;
+                } else {
+                    this._outputChannel?.appendLine(`Configured default environment '${defaultEnv}' not found. options: ${envs.join(', ')}`);
+                }
+            }
+        }
+
         if (savedEnv) {
-            console.log(`Auto-activating saved environment: ${savedEnv}`);
+            this._outputChannel?.appendLine(`Auto-activating saved/default environment: ${savedEnv}`);
+            // Wait, this.activate() reads from state. So we need to set state IF we found a default env but no saved env.
+            // Actually, let's look at activate(). It reads state.
+            // So if we found a defaultEnv, we should probably set the state or call doActivate directly.
+            // If we set state, it persists, which might annoy the user if they want to "unset" it.
+            // But if we don't set state, activate() won't pick it up unless we pass it.
+
+            // Let's rely on doActivate logic.
+            // If we have a savedEnv (either from state or config), we update state? 
+            // The user requested: "automatically create and activate this default environment without any manual intervension".
+            // If I set workspaceState, it effectively "locks" it until they manually change it. 
+            // That seems correct for "persistence".
+
+            if (savedEnv !== this._context.workspaceState.get<string>(EnvironmentManager.envStateKey)) {
+                await this._context.workspaceState.update(EnvironmentManager.envStateKey, savedEnv);
+            }
+
             const installed = await this._pixiManager.isPixiInstalled();
             if (installed) {
                 await this.doActivate(savedEnv, true);
@@ -154,16 +210,24 @@ export class EnvironmentManager {
         await this.doActivate(selectedEnv, silent);
     }
 
-    private async doActivate(envName: string, silent: boolean) {
+    private async doActivate(envName: string, silent: boolean, forceInstall: boolean = false) {
 
         const workspaceUri = this.getWorkspaceFolderURI();
         if (!workspaceUri) { return; }
 
         const pixiPath = this._pixiManager.getPixiPath();
 
-
-        // Step 1: Run 'pixi install' visibly if not silent
         if (!silent) {
+            const config = vscode.workspace.getConfiguration('pixi');
+            const autoReload = config.get<boolean>('autoReload');
+            if (autoReload) {
+                const action = forceInstall ? "Creating" : "Activating";
+                vscode.window.showInformationMessage(`Pixi: ${action} environment... (Auto-reloading)`);
+            }
+        }
+
+        // Step 1: Run 'pixi install' visibly if not silent OR forced
+        if (!silent || forceInstall) {
             try {
                 await this.runInstallInTerminal(pixiPath!, workspaceUri, envName);
             } catch (e: any) {
@@ -235,13 +299,22 @@ export class EnvironmentManager {
 
 
             if (!silent) {
+                const config = vscode.workspace.getConfiguration('pixi');
+                const autoReload = config.get<boolean>('autoReload');
+
                 vscode.window.showInformationMessage(`Pixi environment '${envName || 'default'}' activated.`);
-                const selection = await vscode.window.showInformationMessage(
-                    "Environment activated. Reload window to ensure all extensions pick up changes?",
-                    "Reload", "Later"
-                );
-                if (selection === "Reload") {
+
+                if (autoReload) {
+                    vscode.window.showInformationMessage("Reloading window to apply changes...");
                     vscode.commands.executeCommand("workbench.action.reloadWindow");
+                } else {
+                    const selection = await vscode.window.showInformationMessage(
+                        "Environment activated. Reload window to ensure all extensions pick up changes?",
+                        "Reload", "Later"
+                    );
+                    if (selection === "Reload") {
+                        vscode.commands.executeCommand("workbench.action.reloadWindow");
+                    }
                 }
             } else {
                 console.log('Pixi environment activated silently.');
@@ -308,13 +381,21 @@ export class EnvironmentManager {
         this._context.environmentVariableCollection.clear();
 
         if (!silent) {
-            // Prompt for reload
-            const selection = await vscode.window.showInformationMessage(
-                "Environment deactivated. Reload window to apply changes?",
-                "Reload", "Later"
-            );
-            if (selection === "Reload") {
+            const config = vscode.workspace.getConfiguration('pixi');
+            const autoReload = config.get<boolean>('autoReload');
+
+            if (autoReload) {
+                vscode.window.showInformationMessage("Environment deactivated. Reloading window...");
                 vscode.commands.executeCommand("workbench.action.reloadWindow");
+            } else {
+                // Prompt for reload
+                const selection = await vscode.window.showInformationMessage(
+                    "Environment deactivated. Reload window to apply changes?",
+                    "Reload", "Later"
+                );
+                if (selection === "Reload") {
+                    vscode.commands.executeCommand("workbench.action.reloadWindow");
+                }
             }
         }
     }

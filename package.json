@@ -17,6 +17,21 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Pixi",
+      "properties": {
+        "pixi.defaultEnvironment": {
+          "type": "string",
+          "default": "",
+          "description": "Default Pixi environment to activate automatically on startup."
+        },
+        "pixi.autoReload": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically reload the window after activating or deactivating an environment."
+        }
+      }
+    },
     "commands": [
       {
         "command": "pixi.createEnvironment",

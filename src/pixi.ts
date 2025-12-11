@@ -102,6 +102,13 @@ export class PixiManager {
         }
     }
 
+    public async ensurePixi(): Promise<void> {
+        const installed = await this.isPixiInstalled();
+        if (!installed) {
+            await this.installPixi();
+        }
+    }
+
     public async installPixi(): Promise<void> {
         if (!this._workspaceUri) {
             throw new Error('No workspace folder open.');
