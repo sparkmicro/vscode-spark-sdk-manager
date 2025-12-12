@@ -1,7 +1,12 @@
 {
-  "name": "pixi-vscode",
+  "name": "pixi-vscode-env",
   "displayName": "Pixi VS Code",
   "description": "Pixi integration for VS Code",
+  "publisher": "jfchenier",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jfchenier/jfchenier-SPARK-Pixi-vscode-extension.git"
+  },
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.90.0"
