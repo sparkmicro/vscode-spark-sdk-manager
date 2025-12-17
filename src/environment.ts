@@ -515,17 +515,17 @@ set _LAST_ENV=
         const envsDir = path.join(workspaceRoot, '.pixi', 'envs');
         const targetEnvDir = path.join(envsDir, envName);
 
-        // Ensure target directory exists (and is empty? install implies clean slate)
+        // Ensure envs directory exists
+        fs.mkdirSync(envsDir, { recursive: true });
+
+        // Clean target directory to ensure fresh install
         if (fs.existsSync(targetEnvDir)) {
-            // Backup or Clean?
-            // Let's clean to ensure fresh install
             try {
                 fs.rmSync(targetEnvDir, { recursive: true, force: true });
             } catch (e) {
                 console.warn("Failed to clean target dir", e);
             }
         }
-        fs.mkdirSync(targetEnvDir, { recursive: true });
 
         // 3. Execute Script to Unpack
         try {
@@ -537,38 +537,24 @@ set _LAST_ENV=
                 const platform = process.platform;
                 let cmd = '';
 
-                // We run the script inside the targetEnvDir.
-                // If the script extracts to ., files appear there.
-                // If it extracts to env/, files appear in targetEnvDir/env.
+                // User requested: script.sh --env-name <name> --output-directory <envs_dir>
+                // We use absolute paths for arguments.
 
                 if (platform === 'win32') {
                     if (scriptPath.endsWith('.ps1')) {
-                        cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "& '${scriptPath}'"`;
+                        cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "& '${scriptPath}' --env-name '${envName}' --output-directory '${envsDir}'"`;
                     } else {
                         // .bat?
-                        cmd = `cmd /c "call "${scriptPath}""`;
+                        cmd = `cmd /c "call "${scriptPath}" --env-name "${envName}" --output-directory "${envsDir}""`;
                     }
                 } else {
-                    cmd = `bash "${scriptPath}"`;
+                    cmd = `bash "${scriptPath}" --env-name "${envName}" --output-directory "${envsDir}"`;
                 }
 
-                // Run in targetEnvDir
-                await this._exec(cmd, { cwd: targetEnvDir });
+                // Run from workspace root to allow relative paths if needed, 
+                // though we provided absolute output dir.
+                await this._exec(cmd, { cwd: workspaceRoot });
             });
-
-            // Post-unpacking cleanup: Flatten 'env' subdirectory if it exists
-            const nestedEnv = path.join(targetEnvDir, 'env');
-            if (fs.existsSync(nestedEnv)) {
-                // Move all contents from nestedEnv to targetEnvDir
-                const files = fs.readdirSync(nestedEnv);
-                for (const file of files) {
-                    const srcPath = path.join(nestedEnv, file);
-                    const destPath = path.join(targetEnvDir, file);
-                    fs.renameSync(srcPath, destPath);
-                }
-                // Remove now empty 'env' dir
-                fs.rmdirSync(nestedEnv);
-            }
 
             vscode.window.showInformationMessage(`Offline environment unpacked to ${targetEnvDir}`);
 
@@ -583,119 +569,95 @@ set _LAST_ENV=
     }
 
     public async activate(silent: boolean = false) {
+        // Check for Offline Mode
         try {
-            // Check for Offline Mode
             const config = vscode.workspace.getConfiguration('pixi');
             const offlineName = config.get<string>('offlineEnvironmentName', 'env');
             const savedEnv = this._context.workspaceState.get<string>(EnvironmentManager.envStateKey);
             const defaultEnv = config.get<string>('environment', 'default');
             const currentEnv = savedEnv || defaultEnv;
-
             const workspaceRoot = this.getWorkspaceFolderURI()?.fsPath;
 
-            this.log(`[Activate] Start. Silent=${silent}`);
-            this.log(`[Activate] Config.OfflineName='${offlineName}'`);
-            this.log(`[Activate] SavedEnv='${savedEnv}', DefaultEnv='${defaultEnv}' -> CurrentEnv='${currentEnv}'`);
-            this.log(`[Activate] WorkspaceRoot='${workspaceRoot}'`);
+            // Clear any existing environment variables to ensure a clean slate
+            // This prevents persistent "pollution" (e.g. TERM/TERMINFO) from previous incomplete/bad activations.
+            this._context.environmentVariableCollection.clear();
 
-            // --- CACHE OPTIMIZATION START ---
-            // If we are about to activate the offline environment, try to load from cache synchronously first
+            // --- CACHE VARS ---
             if (currentEnv === offlineName) {
-                this.log(`[Activate] CurrentEnv matches OfflineName. Checking cache...`);
                 const cached = this._context.workspaceState.get<any>(EnvironmentManager.cachedEnvKey);
-                if (cached) {
-                    this.log(`[Activate] Cache found for '${cached.envName}'. Timestamp=${cached.timestamp}`);
-                    if (cached.envName === offlineName && cached.envVars) {
-                        this.log(`[Activate] Cache match! Applying ${Object.keys(cached.envVars).length} variables.`);
-                        for (const key in cached.envVars) {
-                            const value = cached.envVars[key];
-                            process.env[key] = value;
-                            this._context.environmentVariableCollection.replace(key, value);
-                        }
-                        this.log(`[Activate] Cache application complete.`);
-                    } else {
-                        this.log(`[Activate] Cache mismatch or empty vars. CachedName='${cached.envName}'`);
+                if (cached && cached.envName === offlineName && cached.envVars) {
+                    this.log(`Found cached environment for '${offlineName}'. Applying instantaneously.`);
+                    for (const key in cached.envVars) {
+                        if (key === 'TERM' || key === 'TERMINFO' || key === 'TERMINFO_DIRS') continue; // Skip terminal vars
+                        const value = cached.envVars[key];
+                        process.env[key] = value;
+                        this._context.environmentVariableCollection.replace(key, value);
                     }
-                } else {
-                    this.log(`[Activate] No cache found.`);
                 }
-            } else {
-                this.log(`[Activate] CurrentEnv does not match OfflineName. Skipping cache.`);
             }
-            // --- CACHE OPTIMIZATION END ---
+            // ------------------
 
             if (currentEnv === offlineName && workspaceRoot) {
                 const envDir = path.join(workspaceRoot, '.pixi', 'envs', offlineName);
-                this.log(`Checking offline env at: ${envDir}`);
                 if (fs.existsSync(envDir)) {
                     this.log(`Offline env found. Activating...`);
                     await this.activateOfflineEnvironment(envDir, offlineName, silent);
                     return;
                 }
-                this.log(`Offline env directory not found.`);
+                // If offline configured but not found, warn? Or fall through?
+                // Let's warn if silent is false, then fall through.
                 if (!silent) {
-                    vscode.window.showWarningMessage(`Offline environment '${offlineName}' not found at ${envDir}. Using standard activation.`);
+                    vscode.window.showWarningMessage(`Offline environment '${offlineName}' not found using standard activation.`);
                 }
             }
-
-            const installed = await this._pixiManager.isPixiInstalled();
-            if (!installed) {
-                this.log(`Pixi executable not found.`);
-                // If offline mode failed and Pixi is missing, we are dead in the water.
-                if (!silent) {
-                    vscode.window.showErrorMessage("Pixi not installed and offline environment not found.");
-                }
-                return;
-            }
-
-            const envs = await this.getEnvironments();
-            let selectedEnv = '';
-
-            if (envs.length > 1) {
-                if (!silent) {
-                    const pick = await vscode.window.showQuickPick(envs, {
-                        placeHolder: 'Select Pixi Environment to Activate'
-                    });
-                    if (!pick) { return; }
-                    selectedEnv = pick;
-                } else {
-                    // Filter "default" logic
-                    selectedEnv = envs[0];
-                    if (selectedEnv === 'default' && envs.length > 1) selectedEnv = envs[1]; // Prefer named env if default is present?
-                }
-            } else if (envs.length === 1) {
-                selectedEnv = envs[0];
-            } else if (envs.length === 0) {
-                // If no environments are found (e.g., only 'default' existed and was filtered out)
-                // We might want to handle this case, perhaps by falling back to 'default' if it's the only one.
-                // However, the current instruction is to filter it out.
-                // For now, if no non-default envs, we can't activate anything specific.
-                // The `doActivate` will then be called with an empty string, which defaults to 'default'.
-                // This implicitly means if only 'default' exists, it will be activated.
-                // Let's keep `selectedEnv` as empty string if no non-default envs are found.
-            }
-
-
-            if (selectedEnv) {
-                await this._context.workspaceState.update(EnvironmentManager.envStateKey, selectedEnv);
-            }
-
-            await this.doActivate(selectedEnv, silent);
-
-        } catch (e: any) {
-            this.log(`[Activate] FATAL ERROR: ${e.message}`);
-            console.error(e);
-            if (!silent) vscode.window.showErrorMessage(`Pixi Activation Error: ${e.message}`);
+        } catch (e) {
+            console.error("Error in offline logic checks:", e);
         }
+
+        const installed = await this._pixiManager.isPixiInstalled();
+        if (!installed) {
+            this.log(`Pixi executable not found.`);
+            // Only error if we failed offline AND missed pixi
+            if (!silent) {
+                vscode.window.showErrorMessage("Pixi not installed and offline environment not found.");
+            }
+            return;
+        }
+
+        const envs = await this.getEnvironments();
+        let selectedEnv = '';
+
+        if (envs.length > 1) {
+            if (!silent) {
+                const pick = await vscode.window.showQuickPick(envs, {
+                    placeHolder: 'Select Pixi Environment to Activate'
+                });
+                if (!pick) { return; }
+                selectedEnv = pick;
+            } else {
+                // Filter "default" logic
+                selectedEnv = envs[0];
+                if (selectedEnv === 'default' && envs.length > 1) selectedEnv = envs[1];
+            }
+        } else if (envs.length === 1) {
+            selectedEnv = envs[0];
+        }
+
+        if (selectedEnv) {
+            await this._context.workspaceState.update(EnvironmentManager.envStateKey, selectedEnv);
+        }
+
+        await this.doActivate(selectedEnv, silent);
     }
 
     // ... (rest of methods)
 
     private async activateOfflineEnvironment(envDir: string, envName: string, silent: boolean = false) {
-        // Find activation script in provided dir OR in env/ subdir
+        // Find activation script. User specifies it resides in the parent directory (e.g. .pixi/envs/activate.sh)
+        // rather than inside the specific environment folder.
         let scriptPath = '';
 
-        const candidates = [envDir, path.join(envDir, 'env')];
+        const candidates = [path.dirname(envDir)];
 
         for (const dir of candidates) {
             if (process.platform === 'win32') {
@@ -781,8 +743,8 @@ set _LAST_ENV=
                 const beforeValue = beforeEnv.get(key);
                 // If new or changed
                 if (value !== beforeValue) {
-                    // Exclude irrelevant vars that might change naturally
-                    if (key === '_' || key === 'SHLVL' || key === 'PWD' || key === 'OLDPWD') continue;
+                    // Exclude irrelevant vars that might change naturally or break terminal
+                    if (key === '_' || key === 'SHLVL' || key === 'PWD' || key === 'OLDPWD' || key === 'TERM' || key === 'TERMINFO' || key === 'TERMINFO_DIRS') continue;
                     envUpdates.set(key, value);
                 }
             }
@@ -792,61 +754,17 @@ set _LAST_ENV=
             // Convert Map to Obj for caching
             const envObj: { [key: string]: string } = {};
 
-            // 1. Apply Updates from Script (with Path Correction)
-            // The script might report paths like `.../env/env` if it expects a nested structure we flattened.
-            // We verify if `CONDA_PREFIX` looks deeper than `envDir`.
-
-            let detectedWrongPrefix = '';
-            for (const [key, value] of envUpdates) {
-                if (key === 'CONDA_PREFIX' && value.startsWith(envDir) && value.length > envDir.length) {
-                    // Check if this path actually exists?
-                    // If it doesn't, it's definitely wrong.
-                    if (!fs.existsSync(value) && fs.existsSync(envDir)) {
-                        detectedWrongPrefix = value;
-                        this.log(`Detected incorrect CONDA_PREFIX '${detectedWrongPrefix}' (expected '${envDir}'). Fixing paths...`);
-                    }
-                }
-            }
+            // 1. Apply Updates from Script
+            // We assume the script provides correct paths now that we align with its structure.
 
             for (const [key, value] of envUpdates) {
-                let fixedValue = value;
-                if (detectedWrongPrefix) {
-                    // Replace the wrong prefix with the correct one globally
-                    // e.g. .../env/env/bin -> .../env/bin
-                    fixedValue = fixedValue.split(detectedWrongPrefix).join(envDir);
-                }
-
-                // Extra safety: Explicitly force CONDA_PREFIX if it's the key
-                if (key === 'CONDA_PREFIX') fixedValue = envDir;
-
-                this.log(`UPDATE: ${key} = ${fixedValue}`);
-                this._context.environmentVariableCollection.replace(key, fixedValue);
-                process.env[key] = fixedValue;
-                envObj[key] = fixedValue;
+                this.log(`UPDATE: ${key} = ${value}`);
+                this._context.environmentVariableCollection.replace(key, value);
+                process.env[key] = value;
+                envObj[key] = value;
             }
 
-            // 2. Inject Missing Metadata (Parity with 'pixi shell-hook')
-            const workspaceRoot = this.getWorkspaceFolderURI()?.fsPath;
-            if (workspaceRoot) {
-                const extras = {
-                    'PIXI_PROJECT_ROOT': workspaceRoot,
-                    'PIXI_PROJECT_MANIFEST': path.join(workspaceRoot, 'pixi.toml'),
-                    'PIXI_ENVIRONMENT_NAME': envName,
-                    'PIXI_IN_SHELL': '1',
-                    'CONDA_PREFIX': envDir
-                };
 
-                for (const [key, value] of Object.entries(extras)) {
-                    // Only set if not already set (or if we want to enforce override)
-                    // We already forced CONDA_PREFIX above, so envObj has it.
-                    if (!envObj[key]) {
-                        this.log(`INJECT: ${key} = ${value}`);
-                        this._context.environmentVariableCollection.replace(key, value);
-                        process.env[key] = value;
-                        envObj[key] = value;
-                    }
-                }
-            }
 
             // Save to Cache
             this.log(`Caching environment '${envName}'`);
@@ -885,29 +803,5 @@ set _LAST_ENV=
         }
     }
 
-    public debugState() {
-        this.log('--- DEBUG STATE ---');
-        this.log(`PROCESS.ENV.PATH: ${process.env.PATH}`);
-        this.log(`PROCESS.ENV.CONDA_PREFIX: ${process.env.CONDA_PREFIX}`);
-        this.log(`PROCESS.ENV.PIXI_PROJECT_MANIFEST: ${process.env.PIXI_PROJECT_MANIFEST}`);
 
-        const config = vscode.workspace.getConfiguration('pixi');
-        const offlineName = config.get<string>('offlineEnvironmentName', 'env');
-        const currentEnv = this._context.workspaceState.get<string>(EnvironmentManager.envStateKey);
-        this.log(`Config.OfflineName: ${offlineName}`);
-        this.log(`WorkspaceState.CurrentEnv: ${currentEnv}`);
-
-        const cached = this._context.workspaceState.get<any>(EnvironmentManager.cachedEnvKey);
-        if (cached) {
-            this.log(`Cached Env Name: ${cached.envName}`);
-            this.log(`Cached Timestamp: ${cached.timestamp}`);
-            try {
-                this.log(`Cached Vars Keys: ${Object.keys(cached.envVars).join(', ')}`);
-            } catch (e) { this.log('Error reading cached vars keys'); }
-        } else {
-            this.log('No Cache Found.');
-        }
-        this.log('--- END DEBUG STATE ---');
-        vscode.window.showInformationMessage("Pixi Debug State logged to Output.");
-    }
 }

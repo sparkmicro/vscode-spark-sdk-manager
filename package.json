@@ -19,7 +19,6 @@
     "onCommand:pixi.activate",
     "onCommand:pixi.deactivate",
     "workspaceContains:pixi.toml",
-    "workspaceContains:CMakeLists.txt",
     "workspaceContains:.pixi",
     "onStartupFinished"
   ],
@@ -66,10 +65,6 @@
       {
         "command": "pixi.deactivate",
         "title": "Pixi: Deactivate Environment"
-      },
-      {
-        "command": "pixi.debugEnv",
-        "title": "Pixi: Debug Environment State"
       }
     ]
   },

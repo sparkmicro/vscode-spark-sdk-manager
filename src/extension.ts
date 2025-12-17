@@ -25,15 +25,12 @@ export async function activate(context: vscode.ExtensionContext) {
         await envManager.deactivate();
     });
 
-    let debugEnvDisposable = vscode.commands.registerCommand('pixi.debugEnv', () => {
-        envManager.debugState();
-    });
+
 
     context.subscriptions.push(createEnvDisposable);
     context.subscriptions.push(selectOfflineEnvDisposable);
     context.subscriptions.push(activateDisposable);
     context.subscriptions.push(deactivateDisposable);
-    context.subscriptions.push(debugEnvDisposable);
 
     // Auto-activate saved environment
     await envManager.autoActivate();

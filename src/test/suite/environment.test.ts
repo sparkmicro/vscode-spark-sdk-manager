@@ -21,6 +21,7 @@ suite('Environment Manager Test Suite', () => {
                 replace: (key: string, value: string) => {
                     envVarsReference.set(key, value);
                 },
+                clear: () => { }, 
                 persistent: true
             },
             workspaceState: {
@@ -95,6 +96,7 @@ suite('Environment Manager Test Suite', () => {
                 replace: (key: string, value: string) => {
                     envVarsReference.set(key, value);
                 },
+                clear: () => { },
                 persistent: true
             },
             workspaceState: {
