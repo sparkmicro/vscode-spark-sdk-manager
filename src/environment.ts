@@ -8,6 +8,7 @@ export class EnvironmentManager {
     private _context: vscode.ExtensionContext;
     private _exec: (command: string, options?: any) => Promise<{ stdout: string, stderr: string }>;
     private _outputChannel: vscode.OutputChannel | undefined;
+    private _terminalListener: vscode.Disposable | undefined;
     private static readonly envStateKey = 'pixiSelectedEnvironment';
 
     constructor(pixiManager: PixiManager, context: vscode.ExtensionContext, outputChannel?: vscode.OutputChannel, exec?: (command: string, options?: any) => Promise<{ stdout: string, stderr: string }>) {
@@ -72,11 +73,7 @@ export class EnvironmentManager {
             const tomlPath = path.join(workspacePath, 'pixi.toml');
 
             if (fs.existsSync(tomlPath)) {
-                vscode.window.showInformationMessage("pixi.toml already exists. Running install...");
-                const pixi = this._pixiManager.getPixiPath();
-                const term = vscode.window.createTerminal("Pixi Install", process.env.SHELL, []);
-                term.show(true); // Preserve focus to avoid hiding QuickPick
-                term.sendText(`"${pixi}" install`);
+                vscode.window.showInformationMessage("pixi.toml found.");
             } else {
                 await this._pixiManager.initProject();
                 vscode.window.showInformationMessage("Pixi project initialized.");
@@ -173,7 +170,6 @@ export class EnvironmentManager {
             // So if we found a defaultEnv, we should probably set the state or call doActivate directly.
             // If we set state, it persists, which might annoy the user if they want to "unset" it.
             // But if we don't set state, activate() won't pick it up unless we pass it.
-
             // Let's rely on doActivate logic.
             // If we have a savedEnv (either from state or config), we update state? 
             // The user requested: "automatically create and activate this default environment without any manual intervension".
@@ -218,7 +214,9 @@ export class EnvironmentManager {
         }
 
         try {
-            const cmd = `"${pixiPath}" shell-hook --shell bash${envName ? ` -e ${envName}` : ''}`;
+            const platform = process.platform;
+            const shellArg = platform === 'win32' ? 'powershell' : 'bash';
+            const cmd = `"${pixiPath}" shell-hook --shell ${shellArg}${envName ? ` -e ${envName}` : ''}`;
 
             this.log(`Activating environment: ${envName || 'default'} with command: ${cmd}`);
 
@@ -238,12 +236,13 @@ export class EnvironmentManager {
 
             this.log(`Command output:\n${stdout}`);
 
-            // Parse exports
+            // Parse exports (bash) or PowerShell assignments
             const lines = stdout.split('\n');
-            const envUpdates = new Map<string, string>();
+            const envUpdates = new Map<string, { value: string, op: 'replace' | 'prepend' | 'append' }>();
 
             for (const line of lines) {
                 const trimmed = line.trim();
+
                 if (trimmed.startsWith('export ')) {
                     const firstEquals = trimmed.indexOf('=');
                     if (firstEquals === -1) continue;
@@ -256,26 +255,77 @@ export class EnvironmentManager {
                         value = value.substring(1, value.length - 1);
                     }
 
-                    envUpdates.set(key, value);
+                    envUpdates.set(key, { value, op: 'replace' });
+                } else if (trimmed.startsWith('${Env:')) {
+                    // PowerShell: ${Env:KEY} = "VAL" [ + $Env:KEY ]
+                    // We just grab the whole right side first.
+                    // The regex captures everything after assignment, excluding leading whitespace
+                    const match = trimmed.match(/^\${Env:([^}]+)}\s*=\s*(.*)$/);
+                    if (match) {
+                        const key = match[1];
+                        let rhs = match[2];
+                        let op: 'replace' | 'prepend' | 'append' = 'replace';
+                        let value = rhs;
+
+                        // Check for Prepend: "VAL" + $Env:KEY
+                        const prependSuffix = `+ $Env:${key}`;
+                        if (value.endsWith(prependSuffix)) {
+                            op = 'prepend';
+                            value = value.substring(0, value.length - prependSuffix.length).trim();
+                        } else {
+                            // Check for Append: $Env:KEY + "VAL"
+                            const appendPrefix = `$Env:${key} +`;
+                            if (value.startsWith(appendPrefix)) {
+                                op = 'append';
+                                value = value.substring(appendPrefix.length).trim();
+                            }
+                        }
+
+                        // Strip outer quotes if still present
+                        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+                            value = value.substring(1, value.length - 1);
+                        }
+
+                        envUpdates.set(key, { value, op });
+                    }
                 }
             }
 
             // Apply to VSCode environment (terminals)
             const collection = this._context.environmentVariableCollection;
 
-            for (const [key, value] of envUpdates) {
-                let finalValue = value;
+            for (const [key, update] of envUpdates) {
+                let { value, op } = update;
+
                 if (key === 'PATH' && pixiPath) {
-                    // Ensure the local pixi binary is in the path
                     const pixiBinDir = path.dirname(pixiPath);
-                    // Check if already in path (simple check)
                     if (!value.includes(pixiBinDir)) {
-                        finalValue = `${pixiBinDir}${path.delimiter}${value}`;
+                        // Always prepend local pixi bin to PATH if missing
+                        if (op === 'replace') {
+                            value = `${pixiBinDir}${path.delimiter}${value}`;
+                        } else {
+                            // If prepending, simpler to just add it to value
+                            if (op === 'prepend') {
+                                value = `${pixiBinDir}${path.delimiter}${value}`;
+                            } else {
+                                // op is append, prepend separately.
+                                this._context.environmentVariableCollection.prepend(key, pixiBinDir + path.delimiter);
+                            }
+                        }
                     }
                 }
 
-                this._context.environmentVariableCollection.replace(key, finalValue);
-                process.env[key] = finalValue;
+                if (op === 'replace') {
+                    this._context.environmentVariableCollection.replace(key, value);
+                    process.env[key] = value;
+                } else if (op === 'prepend') {
+                    this._context.environmentVariableCollection.prepend(key, value);
+                    // Best effort process.env update
+                    process.env[key] = value + (process.env[key] || '');
+                } else { // append
+                    this._context.environmentVariableCollection.append(key, value);
+                    process.env[key] = (process.env[key] || '') + value;
+                }
             }
 
 
@@ -302,6 +352,30 @@ export class EnvironmentManager {
             }
             vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', true);
 
+            // Setup Terminal Prompt Listener (Windows PowerShell specific workaround)
+            if (process.platform === 'win32') {
+                if (this._terminalListener) {
+                    this._terminalListener.dispose();
+                }
+                this._terminalListener = vscode.window.onDidOpenTerminal(async (terminal: vscode.Terminal) => {
+                    // Double check if environment is still active
+                    if (!this._context.workspaceState.get(EnvironmentManager.envStateKey)) return;
+
+                    // Avoid injecting into our own temporary install terminals
+                    if (terminal.name.startsWith("Pixi Install") || terminal.name.startsWith("Pixi Pack")) return;
+
+                    // We rely on the fact that if environmentVariableCollection is set, the terminal SHOULD have the vars.
+                    // But we can't check terminal vars easily.
+                    // Flattened command to avoid multiline paste issues
+                    const updatePromptCmd = `if (Test-Path Env:\\PIXI_PROMPT) { if (-not (Test-Path Function:\\Global:Prompt_Backup)) { $Global:Prompt_Backup = $function:prompt }; function Global:prompt { Write-Host -NoNewline "$($env:PIXI_PROMPT) "; & $Global:Prompt_Backup } }`;
+
+                    // Delay to ensure the terminal shell and VS Code shell integration have fully loaded
+                    setTimeout(() => {
+                        terminal.sendText(`${updatePromptCmd}; Clear-Host`);
+                    }, 1000);
+                });
+            }
+
         } catch (e: any) {
             if (!silent) {
                 vscode.window.showErrorMessage(`Failed to activate environment: ${e.message}`);
@@ -316,23 +390,18 @@ export class EnvironmentManager {
             const terminal = vscode.window.createTerminal({
                 name: `Pixi Install${envName ? ` (${envName})` : ''}`,
                 cwd: workspaceUri.fsPath,
-                env: process.env // Inherit env
+                env: process.env, // Inherit env
+                shellPath: process.platform === 'win32' ? 'powershell.exe' : undefined
             });
 
             terminal.show();
 
             const platform = process.platform;
-            let cmd = `"${pixiPath}" install --color always${envName ? ` -e ${envName}` : ''}`;
+            let cmd = platform === 'win32' ? '& ' : '';
+            cmd += `"${pixiPath}" install --color always${envName ? ` -e ${envName}` : ''}`;
 
-            // Append exit command so terminal closes automatically on success
             if (platform === 'win32') {
-                // Powershell or cmd? VS Code defaults depend on user settings.
-                // Safest to just assume user shell logic or try generic chaining.
-                // actually, vscode terminals don't auto-close unless the shell process exits.
-                // But we don't know the shell. 
-                // However, we CAN listen for the process exit if we send the exit command.
-
-                // Let's rely on standard shell delimiters.
+                // We enforced PowerShell above, so we can safely use '; exit'
                 cmd += ` ; exit`;
             } else {
                 cmd += ` ; exit $?`;
@@ -392,6 +461,10 @@ export class EnvironmentManager {
                     vscode.commands.executeCommand("workbench.action.reloadWindow");
                 }
             }
+        }
+        if (this._terminalListener) {
+            this._terminalListener.dispose();
+            this._terminalListener = undefined;
         }
         vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', false);
     }
@@ -469,10 +542,14 @@ export class EnvironmentManager {
             // `pixi exec` runs in the *default* environment context by default, or we might need `-e default` if we added it there.
             // Usually `pixi add` adds to `default` feature/env.
 
-            const terminal = vscode.window.createTerminal("Pixi Pack");
+            const terminal = vscode.window.createTerminal({
+                name: "Pixi Pack",
+                shellPath: process.platform === 'win32' ? 'powershell.exe' : undefined
+            });
             terminal.show();
             // We use `pixi exec` which picks up the binary from the env
-            const cmd = `"${pixiPath}" exec pixi-pack --environment ${selectedEnv} --platform ${selectedPlatform} pixi.toml --create-executable`;
+            let cmd = process.platform === 'win32' ? '& ' : '';
+            cmd += `"${pixiPath}" exec pixi-pack --environment ${selectedEnv} --platform ${selectedPlatform} pixi.toml --create-executable`;
             terminal.sendText(cmd);
 
         } catch (e: any) {
@@ -716,6 +793,10 @@ set _LAST_ENV=
                 if (platform === 'win32') {
                     if (scriptPath.endsWith('.ps1')) {
                         cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "& '${scriptPath}' --env-name '${envName}' --output-directory '${envsDir}'"`;
+                    } else if (scriptPath.endsWith('.sh')) {
+                        const scriptPathPosix = scriptPath.split(path.sep).join(path.posix.sep);
+                        const envsDirPosix = envsDir.split(path.sep).join(path.posix.sep);
+                        cmd = `bash "${scriptPathPosix}" --env-name "${envName}" --output-directory "${envsDirPosix}"`;
                     } else {
                         // .bat?
                         cmd = `cmd /c "call "${scriptPath}" --env-name "${envName}" --output-directory "${envsDir}""`;
@@ -867,7 +948,7 @@ set _LAST_ENV=
         } else {
             // Silent or Auto-selection Logic
             if (envs.length > 1) {
-            // Filter "default" logic if silent
+                // Filter "default" logic if silent
                 selectedEnv = envs[0];
                 if (selectedEnv === 'default') selectedEnv = envs[1];
             } else if (envs.length === 1) {

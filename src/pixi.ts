@@ -141,7 +141,8 @@ export class PixiManager {
         const installDir = path.join(this._workspaceUri.fsPath, '.pixi', 'bin');
         await fs.promises.mkdir(installDir, { recursive: true });
 
-        const destFile = path.join(installDir, 'pixi_archive');
+        const archiveName = platform === 'win32' ? 'pixi_archive.zip' : 'pixi_archive.tar.gz';
+        const destFile = path.join(installDir, archiveName);
 
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,

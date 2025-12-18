@@ -54,7 +54,7 @@ suite('Offline Flow Test Suite', () => {
             withProgress: async (opts: any, task: any) => await task({ report: () => { } }),
             showQuickPick: (items: any) => {
                 const res = showQuickPickResults.shift();
-                return Promise.resolve(res); 
+                return Promise.resolve(res);
             },
             showOpenDialog: () => Promise.resolve(showOpenDialogResult),
             onDidCloseTerminal: (listener: (t: any) => void) => {
@@ -67,9 +67,9 @@ suite('Offline Flow Test Suite', () => {
                 // We need to capture the created terminals.
                 const t = createdTerminals[createdTerminals.length - 1]; // Most recent
                 if (t) {
-                   setTimeout(() => listener(t), 10);
+                    setTimeout(() => listener(t), 10);
                 }
-                return { dispose: () => {} };
+                return { dispose: () => { } };
             }
         }
     };
@@ -81,7 +81,7 @@ suite('Offline Flow Test Suite', () => {
         existsSync: (p: string) => {
             if (p.includes('pixi.toml')) return true;
             if (p.endsWith('activate.sh')) return true; // Mock activation script existence
-            if (p.includes('.pixi/envs')) return true; 
+            if (p.includes('.pixi/envs')) return true;
             return false;
         },
         promises: {
@@ -95,8 +95,8 @@ suite('Offline Flow Test Suite', () => {
             rm: () => Promise.resolve(),
             mkdir: () => Promise.resolve(),
         },
-        mkdirSync: () => {},
-        rmSync: () => {}
+        mkdirSync: () => { },
+        rmSync: () => { }
     };
 
     // Load EnvironmentManager with mocks
@@ -140,7 +140,7 @@ suite('Offline Flow Test Suite', () => {
         await envManager.generateOfflineEnvironment();
 
         // Verification
-        
+
         // 1. Check if pixi-pack install was attempted
         const installCmd = execCommands.find(c => c.includes('add pixi-pack'));
         assert.ok(installCmd, 'Should attempt to install pixi-pack');
@@ -150,11 +150,20 @@ suite('Offline Flow Test Suite', () => {
         // 1. Install command
         // 2. Generate command
         assert.ok(terminalSentText.length >= 2, 'Should send at least 2 commands (install + pack)');
-        
+
         const genCmd = terminalSentText[terminalSentText.length - 1];
         assert.ok(genCmd.includes('pixi-pack'), 'Last terminal command should use pixi-pack');
         assert.ok(genCmd.includes('--environment prod'), 'Should use selected environment');
         assert.ok(genCmd.includes('--platform linux-64'), 'Should use selected platform');
+
+        if (process.platform === 'win32') {
+            // Verify PowerShell syntax for both install and pack commands
+            const installTermCmd = terminalSentText.find(c => c.includes('install'));
+            const packTermCmd = terminalSentText.find(c => c.includes('pixi-pack'));
+
+            assert.ok(installTermCmd && installTermCmd.trim().startsWith('& '), 'Install command should start with & on Windows');
+            assert.ok(packTermCmd && packTermCmd.trim().startsWith('& '), 'Pack command should start with & on Windows');
+        }
     });
 
     test('Load Offline Environment: Unpacks and Activating', async () => {
@@ -165,7 +174,7 @@ suite('Offline Flow Test Suite', () => {
 
         // Mock context for activation side-effects
         const mockContext = {
-            environmentVariableCollection: { clear: () => {}, replace: () => {} },
+            environmentVariableCollection: { clear: () => { }, replace: () => { } },
             workspaceState: { get: () => undefined, update: () => Promise.resolve() }
         };
 
@@ -177,7 +186,7 @@ suite('Offline Flow Test Suite', () => {
         await envManager.loadOfflineEnvironment();
 
         // Verification
-        
+
         // 1. Check unpacking command
         const unpackCmd = execCommands.find(c => c.includes('bash') && c.includes('env-installer.sh'));
         assert.ok(unpackCmd, 'Should execute the selected script to unpack');
@@ -199,7 +208,7 @@ suite('Offline Flow Test Suite', () => {
 
         const mockExec = async (cmd: string) => { return { stdout: 'export FOO=BAR', stderr: '' }; };
         const mockContext = {
-            environmentVariableCollection: { clear: () => {}, replace: () => {} },
+            environmentVariableCollection: { clear: () => { }, replace: () => { } },
             workspaceState: { get: () => undefined, update: () => Promise.resolve() }
         };
 
