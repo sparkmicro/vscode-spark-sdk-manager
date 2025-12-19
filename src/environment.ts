@@ -392,7 +392,7 @@ export class EnvironmentManager {
                 task: 'install'
             };
 
-            const command = `"${pixiPath}" install --color always${envName ? ` -e ${envName}` : ''}`;
+            const command = `"${pixiPath}" install${envName ? ` -e ${envName}` : ''}`;
 
             const task = new vscode.Task(
                 taskDefinition,
@@ -541,20 +541,48 @@ export class EnvironmentManager {
             if (!selectedPlatform) return;
 
             // 4. Execute Generation Command
-            // "pixi exec pixi-pack --environment <env name> --platform <platform> pixi.toml --create-executable"
-            // Note: `pixi-pack` needs to be run via `pixi exec` if it was installed in the environment.
-            // `pixi exec` runs in the *default* environment context by default, or we might need `-e default` if we added it there.
-            // Usually `pixi add` adds to `default` feature/env.
+            // Use vscode.Task for consistent terminal behavior
+            const cmd = `"${pixiPath}" exec pixi-pack --environment ${selectedEnv} --platform ${selectedPlatform} pixi.toml --create-executable`;
 
-            const terminal = vscode.window.createTerminal({
-                name: "Pixi Pack",
-                shellPath: process.platform === 'win32' ? 'powershell.exe' : undefined
+            await new Promise<void>((resolve, reject) => {
+                const taskDefinition = {
+                    type: 'pixi',
+                    task: 'pack'
+                };
+
+                const task = new vscode.Task(
+                    taskDefinition,
+                    vscode.workspace.getWorkspaceFolder(vscode.Uri.file(workspaceRoot)) || vscode.TaskScope.Workspace,
+                    `Pack ${selectedEnv}`,
+                    'pixi',
+                    new vscode.ShellExecution(cmd),
+                    []
+                );
+
+                task.presentationOptions = {
+                    reveal: vscode.TaskRevealKind.Always,
+                    panel: vscode.TaskPanelKind.Dedicated,
+                    clear: true,
+                    close: false
+                };
+
+                vscode.tasks.executeTask(task).then(execution => {
+                    const disposable = vscode.tasks.onDidEndTaskProcess(e => {
+                        if (e.execution === execution) {
+                            disposable.dispose();
+                            if (e.exitCode === 0) {
+                                resolve();
+                            } else {
+                                reject(new Error(`Pack failed with exit code ${e.exitCode}`));
+                            }
+                        }
+                    });
+                }, error => {
+                    reject(new Error(`Failed to start pack task: ${error}`));
+                });
             });
-            terminal.show();
-            // We use `pixi exec` which picks up the binary from the env
-            let cmd = process.platform === 'win32' ? '& ' : '';
-            cmd += `"${pixiPath}" exec pixi-pack --environment ${selectedEnv} --platform ${selectedPlatform} pixi.toml --create-executable`;
-            terminal.sendText(cmd);
+
+            vscode.window.showInformationMessage(`Offline environment generated for ${selectedEnv} (${selectedPlatform}).`);
 
         } catch (e: any) {
             vscode.window.showErrorMessage(`Failed to generate offline environment: ${e.message}`);
@@ -608,7 +636,14 @@ export class EnvironmentManager {
             const pixiDir = path.join(workspacePath, '.pixi');
 
             if (fs.existsSync(pixiDir)) {
-                await fs.promises.rm(pixiDir, { recursive: true, force: true });
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: "Clearing Pixi Environment...",
+                    cancellable: false
+                }, async () => {
+                    await fs.promises.rm(pixiDir, { recursive: true, force: true });
+                });
+
                 vscode.window.showInformationMessage("'.pixi' directory deleted.");
                 // 3. Reload window to clear all traces
                 vscode.commands.executeCommand("workbench.action.reloadWindow");
@@ -783,35 +818,64 @@ set _LAST_ENV=
 
         // 3. Execute Script to Unpack
         try {
-            await vscode.window.withProgress({
-                location: vscode.ProgressLocation.Notification,
-                title: `Unpacking offline environment to ${targetEnvDir}...`,
-                cancellable: false
-            }, async () => {
-                const platform = process.platform;
-                let cmd = '';
+            const platform = process.platform;
+            let cmd = '';
 
-                // User requested: script.sh --env-name <name> --output-directory <envs_dir>
-                // We use absolute paths for arguments.
+            // User requested: script.sh --env-name <name> --output-directory <envs_dir>
+            // We use absolute paths for arguments.
 
-                if (platform === 'win32') {
-                    if (scriptPath.endsWith('.ps1')) {
-                        cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "& '${scriptPath}' --env-name '${envName}' --output-directory '${envsDir}'"`;
-                    } else if (scriptPath.endsWith('.sh')) {
-                        const scriptPathPosix = scriptPath.split(path.sep).join(path.posix.sep);
-                        const envsDirPosix = envsDir.split(path.sep).join(path.posix.sep);
-                        cmd = `bash "${scriptPathPosix}" --env-name "${envName}" --output-directory "${envsDirPosix}"`;
-                    } else {
-                        // .bat?
-                        cmd = `cmd /c "call "${scriptPath}" --env-name "${envName}" --output-directory "${envsDir}""`;
-                    }
+            if (platform === 'win32') {
+                if (scriptPath.endsWith('.ps1')) {
+                    cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "& '${scriptPath}' --env-name '${envName}' --output-directory '${envsDir}'"`;
+                } else if (scriptPath.endsWith('.sh')) {
+                    const scriptPathPosix = scriptPath.split(path.sep).join(path.posix.sep);
+                    const envsDirPosix = envsDir.split(path.sep).join(path.posix.sep);
+                    cmd = `bash "${scriptPathPosix}" --env-name "${envName}" --output-directory "${envsDirPosix}"`;
                 } else {
-                    cmd = `bash "${scriptPath}" --env-name "${envName}" --output-directory "${envsDir}"`;
+                    // .bat?
+                    cmd = `cmd /c "call "${scriptPath}" --env-name "${envName}" --output-directory "${envsDir}""`;
                 }
+            } else {
+                cmd = `bash "${scriptPath}" --env-name "${envName}" --output-directory "${envsDir}"`;
+            }
 
-                // Run from workspace root to allow relative paths if needed, 
-                // though we provided absolute output dir.
-                await this._exec(cmd, { cwd: workspaceRoot });
+            // Run via Task
+            await new Promise<void>((resolve, reject) => {
+                const taskDefinition = {
+                    type: 'pixi',
+                    task: 'unpack'
+                };
+
+                const task = new vscode.Task(
+                    taskDefinition,
+                    vscode.workspace.getWorkspaceFolder(vscode.Uri.file(workspaceRoot)) || vscode.TaskScope.Workspace,
+                    `Unpack ${envName}`,
+                    'pixi',
+                    new vscode.ShellExecution(cmd, { cwd: workspaceRoot }),
+                    []
+                );
+
+                task.presentationOptions = {
+                    reveal: vscode.TaskRevealKind.Always,
+                    panel: vscode.TaskPanelKind.Dedicated,
+                    clear: true,
+                    close: false
+                };
+
+                vscode.tasks.executeTask(task).then(execution => {
+                    const disposable = vscode.tasks.onDidEndTaskProcess(e => {
+                        if (e.execution === execution) {
+                            disposable.dispose();
+                            if (e.exitCode === 0) {
+                                resolve();
+                            } else {
+                                reject(new Error(`Unpack failed with exit code ${e.exitCode}`));
+                            }
+                        }
+                    });
+                }, error => {
+                    reject(new Error(`Failed to start unpack task: ${error}`));
+                });
             });
 
             vscode.window.showInformationMessage(`Offline environment unpacked to ${targetEnvDir}`);
