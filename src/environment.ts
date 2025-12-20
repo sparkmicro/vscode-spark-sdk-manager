@@ -216,7 +216,7 @@ export class EnvironmentManager {
         try {
             const platform = process.platform;
             const shellArg = platform === 'win32' ? 'powershell' : 'bash';
-            const cmd = `"${pixiPath}" shell-hook --shell ${shellArg}${envName ? ` -e ${envName}` : ''}`;
+            const cmd = `"${pixiPath}" shell-hook --shell ${shellArg}${envName ? ` -e "${envName}"` : ''}`;
 
             this.log(`Activating environment: ${envName || 'default'} with command: ${cmd}`);
 
@@ -392,7 +392,7 @@ export class EnvironmentManager {
                 task: 'install'
             };
 
-            const command = `"${pixiPath}" install${envName ? ` -e ${envName}` : ''}`;
+            const command = `"${pixiPath}" install${envName ? ` -e "${envName}"` : ''}`;
 
             const task = new vscode.Task(
                 taskDefinition,
@@ -915,10 +915,12 @@ set _LAST_ENV=
         const offlineName = config.get<string>('offlineEnvironmentName', 'env');
         const workspaceRoot = this.getWorkspaceFolderURI()?.fsPath;
 
+        let currentEnv: string | undefined;
+
         try {
             const savedEnv = this._context.workspaceState.get<string>(EnvironmentManager.envStateKey);
             const defaultEnv = config.get<string>('environment', 'default');
-            const currentEnv = savedEnv || defaultEnv;
+            currentEnv = savedEnv || defaultEnv;
 
             // Clear any existing environment variables to ensure a clean slate
             // This prevents persistent "pollution" (e.g. TERM/TERMINFO) from previous incomplete/bad activations.
@@ -1015,12 +1017,14 @@ set _LAST_ENV=
             selectedEnv = pick;
         } else {
             // Silent or Auto-selection Logic
-            if (envs.length > 1) {
-                // Filter "default" logic if silent
+            // 1. Try to use currently configured/saved environment
+            if (currentEnv && (envs.includes(currentEnv) || currentEnv === 'default')) {
+                selectedEnv = currentEnv;
+            }
+            // 2. Fallback: Pick the first available (non-default) environment if multiple exist
+            else if (envs.length > 0) {
                 selectedEnv = envs[0];
-                if (selectedEnv === 'default') selectedEnv = envs[1];
-            } else if (envs.length === 1) {
-                selectedEnv = envs[0];
+                // If the filtered list implies default, we handled it, but here we just pick first.
             }
         }
 

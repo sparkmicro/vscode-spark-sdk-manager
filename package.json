@@ -8,14 +8,14 @@
     "url": "https://github.com/jfchenier/jfchenier-SPARK-Pixi-vscode-extension.git"
   },
   "license": "MIT",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.90.0"
   },
   "categories": [
     "Other"
   ],
-    "activationEvents": [
+  "activationEvents": [
     "workspaceContains:pixi.toml",
     "workspaceContains:.pixi"
   ],

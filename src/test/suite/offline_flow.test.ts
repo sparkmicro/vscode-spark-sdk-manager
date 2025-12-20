@@ -15,6 +15,8 @@ suite('Offline Flow Test Suite', () => {
     let commandCalls: string[] = [];
     let mockConfig: { [key: string]: any } = {};
 
+    let lastTaskExecution: any;
+
     // Mock VS Code
     const vscodeMock = {
         ExtensionContext: class { },
@@ -22,6 +24,7 @@ suite('Offline Flow Test Suite', () => {
         Uri: { file: (f: string) => ({ fsPath: f, scheme: 'file', toString: () => f }) },
         workspace: {
             workspaceFolders: [{ uri: { fsPath: '/mock/workspace' } }],
+            getWorkspaceFolder: (uri: any) => ({ uri: { fsPath: '/mock/workspace' }, index: 0, name: 'Workspace' }),
             getConfiguration: () => ({
                 get: (key: string, def?: any) => {
                     if (key in mockConfig) return mockConfig[key];
@@ -59,19 +62,30 @@ suite('Offline Flow Test Suite', () => {
             showOpenDialog: () => Promise.resolve(showOpenDialogResult),
             onDidCloseTerminal: (listener: (t: any) => void) => {
                 // Simulate immediate closure of any created terminal
-                // We don't have the terminal object here easily unless we track it.
-                // runInstallInTerminal passes the terminal it created to wait for it.
-                // We effectively say "any terminal closed".
-                // We'll call the listener with a mock terminal that matches what we expect or just any.
-                // But runInstallInTerminal checks `t === terminal`.
-                // We need to capture the created terminals.
                 const t = createdTerminals[createdTerminals.length - 1]; // Most recent
                 if (t) {
                     setTimeout(() => listener(t), 10);
                 }
                 return { dispose: () => { } };
             }
-        }
+        },
+        ShellExecution: class { constructor(cmd: string) { } },
+        Task: class { constructor(def: any, scope: any, name: string, source: string, exec: any) { } },
+        TaskScope: { Workspace: 1 },
+        tasks: {
+            executeTask: () => {
+                const execution = {}; // Stable identity
+                lastTaskExecution = execution;
+                return Promise.resolve(execution);
+            },
+            onDidEndTaskProcess: (listener: (e: any) => void) => {
+                const exec = lastTaskExecution || {};
+                setTimeout(() => listener({ execution: exec, exitCode: 0 }), 10);
+                return { dispose: () => { } };
+            }
+        },
+        TaskRevealKind: { Always: 1 },
+        TaskPanelKind: { Dedicated: 1 }
     };
 
     let createdTerminals: any[] = [];
@@ -124,7 +138,7 @@ suite('Offline Flow Test Suite', () => {
     test('Generate Offline Environment: Flows correctly', async () => {
         const mockExec = async (cmd: string) => {
             execCommands.push(cmd);
-            if (cmd.includes('info --json')) {
+            if (cmd.indexOf('info') !== -1) {
                 return { stdout: JSON.stringify({ environments_info: [{ name: 'default' }, { name: 'prod' }] }), stderr: '' };
             }
             return { stdout: '', stderr: '' };
@@ -169,6 +183,9 @@ suite('Offline Flow Test Suite', () => {
     test('Load Offline Environment: Unpacks and Activating', async () => {
         const mockExec = async (cmd: string) => {
             execCommands.push(cmd);
+            if (cmd.indexOf('info') !== -1) {
+                return { stdout: JSON.stringify({ environments_info: [{ name: 'default' }, { name: 'prod' }] }), stderr: '' };
+            }
             return { stdout: 'export FOO=BAR', stderr: '' }; // Mock unpacking or activation output
         };
 
@@ -206,7 +223,12 @@ suite('Offline Flow Test Suite', () => {
     test('Load Offline Environment: Auto-Reloads if configured', async () => {
         mockConfig['autoReload'] = true;
 
-        const mockExec = async (cmd: string) => { return { stdout: 'export FOO=BAR', stderr: '' }; };
+        const mockExec = async (cmd: string) => {
+            if (cmd.indexOf('info') !== -1) {
+                return { stdout: JSON.stringify({ environments_info: [{ name: 'default' }, { name: 'prod' }] }), stderr: '' };
+            }
+            return { stdout: 'export FOO=BAR', stderr: '' };
+        };
         const mockContext = {
             environmentVariableCollection: { clear: () => { }, replace: () => { } },
             workspaceState: { get: () => undefined, update: () => Promise.resolve() }
