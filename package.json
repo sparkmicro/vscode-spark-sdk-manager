@@ -63,6 +63,11 @@
         "category": "Pixi"
       },
       {
+        "command": "pixi.generateScripts",
+        "title": "Generate Activation Scripts",
+        "category": "Pixi"
+      },
+      {
         "command": "pixi.activate",
         "title": "Activate Environment",
         "category": "Pixi"

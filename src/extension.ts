@@ -32,6 +32,10 @@ export async function activate(context: vscode.ExtensionContext) {
         await envManager.generateOfflineEnvironment();
     });
 
+    let generateScriptsDisposable = vscode.commands.registerCommand('pixi.generateScripts', async () => {
+        await envManager.generateScripts();
+    });
+
 
 
     context.subscriptions.push(createEnvDisposable);
@@ -40,6 +44,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(deactivateDisposable);
     context.subscriptions.push(clearDisposable);
     context.subscriptions.push(generateOfflineDisposable);
+    context.subscriptions.push(generateScriptsDisposable);
 
     // Auto-activate saved environment
     await envManager.autoActivate();
