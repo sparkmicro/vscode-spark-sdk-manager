@@ -1,46 +1,67 @@
-# Pixi VS Code
+# Pixi Environment Manager for VS Code
 
-Pixi integration for VS Code. This extension allows you to manage environments using [Pixi](https://pixi.sh/), a high-performance package management tool.
+A comprehensive VS Code extension for managing [Pixi](https://pixi.sh) environments. This extension enables seamless integration of Pixi-managed toolchains directly into your VS Code workspace, providing a streamlined and fully integrated development experience.
 
-## Features
+## Key Features
 
-- **Create Environment**: Initialize a new Pixi environment. If a `pixi.toml` exists, it runs `pixi install`. If not, it runs `pixi init`. The environment is automatically activated upon completion.
-- **Activate Environment**: Activate an existing Pixi environment within VS Code. The extension parses `pixi shell-hook` output to inject environment variables directly into the VS Code terminal session, ensuring all tools are available.
-- **Deactivate Environment**: Deactivate the current Pixi environment, clearing the injected environment variables and restoring the session to its base state.
-- **Offline Environments**: Generate a portable, offline-capable environment package. This creates a tarball and an installer script, allowing deployment on air-gapped systems or machines without a global Pixi installation.
-- **Auto-Detection**: The extension automatically detects `pixi.toml` in the workspace root and enables relevant commands.
+*   **Automatic Bootstrapping**: Automatically downloads and installs the Pixi binary if it's not present, making onboarding new developers effortless.
+*   **Full Window Context**: Injects environment variables (like `PATH`, `CONDA_PREFIX`, and custom variables) into the **entire VS Code window context**. This means terminals, other extensions, and tasks all inherit the activated environment automatically.
+*   **Offline Support**: Unique capability to generate and load "offline" environment packs (`.tar.gz` + `.pixi`), enabling reproducible development in air-gapped or restricted networks.
 
-## Extension Settings
 
-This extension contributes the following settings:
+## 🚀 Why this extension?
 
-* `pixi.defaultEnvironment`: Specifies the default Pixi environment to automatically activate on startup if no previous environment state is found.
-* `pixi.environment`: The fallback environment name to use during activation if no specific environment is selected (default: `default`).
-* `pixi.offlineEnvironmentName`: The name given to the directory when unpacking an offline environment (e.g., `.pixi/envs/<name>`). Default is `env`.
-* `pixi.autoReload`: If set to `true`, the VS Code window will automatically reload after an environment is activated or deactivated. This ensures that extensions and terminals fully embrace the new environment variables. Default is `false`.
+While there is an official Pixi extension, **Pixi Environment Manager** focuses on a different set of needs:
 
-## Commands
+| Feature | Pixi Environment Manager (This Extension) | Official Pixi Extension |
+| :--- | :--- | :--- |
+| **Scope** | **Full Setup & Infrastructure**. Automates binary download, offline packing, and deep system integration. | **Task Runner**. Focused on running `pixi run` commands effectively. |
+| **Context Integration** | **Window-Wide**. Injects variables into the global collection, so **all** terminals and extensions see the environment by default. | **Terminal-Specific**. Often focuses on specific task terminals. |
+| **Language Focus** | **Language Agnostic**. Designed for ANY toolchain managed by Pixi (C++, Rust, Python, Go, Node, System Tools). **Not limited to Python.** | Often associated with Python workflows. |
+| **Offline Workflows** | Native commands to pack and unpack offline environments. | Not a primary focus. |
 
-The extension provides the following commands via the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`):
+**Use this extension if:**
+*   You want a "zero-setup" experience for your team (just open VS Code and it works).
+*   You use Pixi to manage general developer tooling (compilers, linters, cloud CLIs), not just Python.
+*   You want your `pixi.toml` to drive the *entire* VS Code experience.
 
-* **Pixi: Create Environment** (`pixi.createEnvironment`)
-  Initializes a new Pixi project in the current workspace. If a `pixi.toml` already exists, it installs dependencies.
+## 📦 Usage
 
-* **Pixi: Activate Environment** (`pixi.activate`)
-  Manually activates the Pixi environment. It prompts you to select an environment (if multiple are defined) and injects the variables.
+### Getting Started
+1.  Open a folder containing a `pixi.toml`.
+2.  The extension will detect it. If Pixi is missing, it will ask to download it.
+3.  The environment will automatically activate. Open a new terminal, and your tools are ready!
 
-* **Pixi: Deactivate Environment** (`pixi.deactivate`)
-  Removes Pixi environment variables from the current VS Code session.
+### Commands (Command Palette: `Pixi Env: ...`)
+*   **Create Environment**: Initialize a new Pixi project or hydrate an existing one.
+*   **Activate Environment**: Manually activate a specific environment from `pixi.toml`.
+*   **Deactivate Environment**: Deactivate the current Pixi environment in the window.
+*   **Clear Environment**: Clear the environment cache/state.
+*   **Generate Offline Environment**: Create a portable archive of your current environment (requires `pixi-pack`).
+*   **Load Offline Environment**: Restore an environment from an offline archive.
+*   **Generate Activation Scripts**: Create shell scripts (`activate.sh`, `activate.bat`) for external use.
 
-* **Pixi: Clear Environment** (`pixi.clear`)
-  Completely resets the environment state by **deleting the `.pixi` folder** and reloading the window. This is useful for performing a clean re-initialization.
+### Configuration
+*   `pixi.defaultEnvironment`: Name of the environment to activate automatically on startup.
+*   `pixi.environment`: Fallback environment name to use if no specific environment is selected (default: `default`).
+*   `pixi.offlineEnvironmentName`: Name of the directory when unpacking an offline environment (default: `env`).
+*   `pixi.autoReload`: Automatically reload the window after activation to ensure all extensions pick up changes.
 
-* **Pixi: Generate Offline Environment** (`pixi.generateOffline`)
-  Creates a standalone offline environment. It uses `pixi-pack` to compress the environment and generates a platform-agnostic installer script (`install.sh`/`install.bat`).
+## 🔧 Building & Contributing
 
-* **Pixi: Load Offline Environment** (`pixi.loadOfflineEnvironment`)
-  Prompts for an installer script (from a generated offline environment), unpacks it into the project, and activates it. This allows working in an isolated environment without external dependencies.
+### Build
+```bash
+npm install
+npm run compile
+```
 
-## Documentation
+### Run
+Press `F5` in VS Code to launch the extension development host.
 
-For development instructions, please refer to [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+## 👏 Credits
+
+*   **Inspiration**: Heavily inspired by the [vscode-micromamba](https://github.com/mamba-org/vscode-micromamba) extension.
+*   **Pixi**: Built upon the incredible [Pixi](https://pixi.sh) package manager by [prefix.dev](https://prefix.dev).
+
+---
+**Enjoy a cleaner, more powerful development environment with Pixi!**

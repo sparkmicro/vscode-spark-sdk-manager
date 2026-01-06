@@ -1,14 +1,15 @@
 {
   "name": "pixi-vscode-env",
-  "displayName": "Pixi VS Code",
-  "description": "Pixi integration for VS Code",
+  "displayName": "Pixi Environment Manager",
+  "description": "Comprehensive Pixi environment management for VS Code. Automatically downloads Pixi, manages environment activation (full window context), and handles offline environment packing.",
+  "icon": "assets/pixi-logo.png",
   "publisher": "jfchenier",
   "repository": {
     "type": "git",
     "url": "https://github.com/jfchenier/jfchenier-SPARK-Pixi-vscode-extension.git"
   },
   "license": "MIT",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -50,37 +51,37 @@
       {
         "command": "pixi.createEnvironment",
         "title": "Create Environment",
-        "category": "Pixi"
+        "category": "Pixi Env"
       },
       {
         "command": "pixi.generateOffline",
         "title": "Generate Offline Environment",
-        "category": "Pixi"
+        "category": "Pixi Env"
       },
       {
         "command": "pixi.loadOfflineEnvironment",
         "title": "Load Offline Environment",
-        "category": "Pixi"
+        "category": "Pixi Env"
       },
       {
         "command": "pixi.generateScripts",
         "title": "Generate Activation Scripts",
-        "category": "Pixi"
+        "category": "Pixi Env"
       },
       {
         "command": "pixi.activate",
         "title": "Activate Environment",
-        "category": "Pixi"
+        "category": "Pixi Env"
       },
       {
         "command": "pixi.deactivate",
         "title": "Deactivate Environment",
-        "category": "Pixi"
+        "category": "Pixi Env"
       },
       {
         "command": "pixi.clear",
         "title": "Clear Environment",
-        "category": "Pixi"
+        "category": "Pixi Env"
       }
     ],
     "menus": {
