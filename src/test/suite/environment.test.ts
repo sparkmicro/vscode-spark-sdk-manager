@@ -186,7 +186,7 @@ suite('Environment Manager Test Suite', () => {
         (envManager as any)._exec = mockExec;
 
         // Ensure config is false initially
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         await config.update('showDefaultEnvironment', false, vscode.ConfigurationTarget.Global);
 
         // Test Default (False)
@@ -244,7 +244,7 @@ suite('Environment Manager Test Suite', () => {
         (envManager as any)._exec = mockExec;
 
         // Ensure config is false
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         await config.update('showDefaultEnvironment', false, vscode.ConfigurationTarget.Global);
 
         // Test Default (False) but ONLY default env exists
@@ -422,7 +422,7 @@ suite('Environment Manager Test Suite', () => {
         const originalGetConfig = vscode.workspace.getConfiguration;
         // @ts-expect-error: Mock implementation doesn't match full VS Code API surface
         vscode.workspace.getConfiguration = (section: string) => {
-            if (section === 'pixi') {
+            if (section === 'spark-sdk') {
                 return {
                     get: (key: string, def?: any) => {
                         if (key === 'defaultEnvironment') { return 'prod'; }
@@ -488,7 +488,7 @@ suite('Environment Manager Test Suite', () => {
         const originalGetConfig2 = vscode.workspace.getConfiguration;
         // @ts-expect-error: Mock implementation doesn't match full VS Code API surface
         vscode.workspace.getConfiguration = (section: string) => {
-            if (section === 'pixi') {
+            if (section === 'spark-sdk') {
                 return {
                     get: (key: string, def?: any) => {
                         if (key === 'defaultEnvironment') { return 'prod'; }
@@ -547,7 +547,7 @@ suite('Environment Manager Test Suite', () => {
         const originalGetConfig = vscode.workspace.getConfiguration;
         // @ts-expect-error: Mock implementation
         vscode.workspace.getConfiguration = (section: string) => {
-            if (section === 'pixi') {
+            if (section === 'spark-sdk') {
                 return {
                     get: (key: string, def?: any) => {
                         if (key === 'showDefaultEnvironment') { return true; }
@@ -625,7 +625,7 @@ suite('Environment Manager Test Suite', () => {
         const originalGetConfig = vscode.workspace.getConfiguration;
         // @ts-expect-error: Mock implementation
         vscode.workspace.getConfiguration = (section: string) => {
-            if (section === 'pixi') {
+            if (section === 'spark-sdk') {
                 return {
                     get: (key: string, def?: any) => {
                         if (key === 'defaultEnvironment') { return 'prod'; }
