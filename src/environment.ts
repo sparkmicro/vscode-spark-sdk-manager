@@ -1153,12 +1153,35 @@ if exist "%SCRIPT_DIR%activate.bat" (
                 const commandToRun = candidates.find(c => commands.includes(c));
 
                 if (commandToRun) {
-                    this.log(`Conflicting Micromamba command detected: ${commandToRun}`);
-                    this.log(`Deactivating Micromamba environment...`);
-                    await vscode.commands.executeCommand(commandToRun);
+                    // Refinement: Only run if we detect we are likely in a Micromamba/Conda environment
+                    // Checking CONDA_PREFIX only (MAMBA_EXE can be present globally)
+                    // limit false positives by ignoring 'base' environment which is often auto-activated.
+                    // Also check if the current active environment is NOT a Pixi environment (path doesn't contain .pixi/envs)
+                    // This handles the case where a user nests a Micromamba env ON TOP of a Pixi env.
 
-                    // Vital: Wait for Micromamba deactivation to propagate to env collection
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    const condaPrefix = process.env.CONDA_PREFIX;
+                    const envPath = process.env.PATH || '';
+
+                    // Check 1: CONDA_PREFIX points to a non-base, non-Pixi environment
+                    const isPrefixActive = condaPrefix
+                        && process.env.CONDA_DEFAULT_ENV !== 'base'
+                        && !condaPrefix.includes('.pixi/envs');
+
+                    // Check 2: PATH contains a Micromamba environment (fallback if CONDA_PREFIX is masked)
+                    // We look for 'micromamba/envs/' which strongly suggests a named environment.
+                    // We assume standard naming.
+                    const isPathActive = envPath.includes('micromamba/envs/') || envPath.includes('micromamba\\envs\\');
+
+                    const isMambaActive = isPrefixActive || isPathActive;
+
+                    if (isMambaActive) {
+                        this.log(`Conflicting Micromamba command detected: ${commandToRun}`);
+                        this.log(`Deactivating Micromamba environment...`);
+                        await vscode.commands.executeCommand(commandToRun);
+
+                        // Vital: Wait for Micromamba deactivation to propagate to env collection
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
                 }
             } catch (e) {
                 this.log(`Error checking/deactivating Micromamba: ${e}`);

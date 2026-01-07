@@ -1,4 +1,3 @@
-
 import * as assert from 'assert';
 import * as path from 'path';
 
@@ -95,7 +94,10 @@ suite('Micromamba Conflict Test Suite', () => {
     let context: any;
     let mockPixiManager: any;
 
+    let originalCondPrefix: string | undefined;
+
     setup(() => {
+        originalCondPrefix = process.env.CONDA_PREFIX;
         commandCalls = [];
         mockConfig = {};
         context = {
@@ -121,10 +123,18 @@ suite('Micromamba Conflict Test Suite', () => {
         envManager = new EnvironmentManager(mockPixiManager, context);
     });
 
+    teardown(() => {
+        process.env.CONDA_PREFIX = originalCondPrefix;
+        delete process.env.CONDA_DEFAULT_ENV;
+        delete process.env.PIXI_IN_SHELL;
+    });
+
     test('Activate attempts to deactivate micromamba if conflicting command exists', async () => {
         // Run activate
         // We expect it to find a known command in getCommands (mocked)
         // Then execute it.
+        // Simulate active micromamba env
+        process.env.CONDA_PREFIX = '/mock/env';
         await envManager.activate();
 
         // Check if deactivate was called
@@ -152,9 +162,89 @@ suite('Micromamba Conflict Test Suite', () => {
         // Reset calls
         commandCalls = [];
 
+        // Simulate active micromamba env
+        process.env.CONDA_PREFIX = '/mock/env';
         await envManager.activate();
 
         const deactivateCalled = commandCalls.includes('corker.micromamba.deactivate.environment');
         assert.ok(deactivateCalled, 'Should have called corker.micromamba.deactivate.environment');
+    });
+    test('Activate does NOT deactivate if command exists but no environment active', async () => {
+        // Command exists (default mock behavior: micromamba.deactivate is in the list)
+
+        // Ensure no active env vars
+        delete process.env.CONDA_PREFIX;
+        // delete process.env.MAMBA_EXE; // We don't check this anymore, checking just prefix is enough
+
+        commandCalls = [];
+        await envManager.activate();
+
+        const deactivateCalled = commandCalls.includes('micromamba.deactivate');
+        assert.ok(!deactivateCalled, 'Should NOT have called deactivate when no environment is active');
+    });
+
+    test('Activate does NOT deactivate if environment is base', async () => {
+        // Command exists
+        vscodeMock.commands.getCommands = (filter: boolean) => Promise.resolve(['micromamba.deactivate']);
+
+        // Simulate base env active
+        process.env.CONDA_PREFIX = '/home/user/conda/base';
+        process.env.CONDA_DEFAULT_ENV = 'base';
+
+        commandCalls = [];
+        await envManager.activate();
+
+        const deactivateCalled = commandCalls.includes('micromamba.deactivate');
+        assert.ok(!deactivateCalled, 'Should NOT have called deactivate for base environment');
+    });
+
+    test('Activate does NOT deactivate if environment IS Pixi (path contains .pixi/envs)', async () => {
+        // Command exists
+        vscodeMock.commands.getCommands = (filter: boolean) => Promise.resolve(['micromamba.deactivate']);
+
+        // Simulate a Pixi environment (which sets CONDA_PREFIX for compatibility)
+        process.env.CONDA_PREFIX = '/home/user/project/.pixi/envs/default';
+        process.env.CONDA_DEFAULT_ENV = 'default';
+        // process.env.PIXI_IN_SHELL = '1'; // Removed this specific check in favor of path check
+
+        commandCalls = [];
+        await envManager.activate();
+
+        const deactivateCalled = commandCalls.includes('micromamba.deactivate');
+        assert.ok(!deactivateCalled, 'Should NOT have called deactivate if path contains .pixi/envs');
+    });
+
+    test('Activate DOES deactivate if nested Micromamba env on top of Pixi', async () => {
+        // Command exists
+        vscodeMock.commands.getCommands = (filter: boolean) => Promise.resolve(['micromamba.deactivate']);
+
+        // Simulate nested scenario:
+        // PIXI_IN_SHELL might be set, but CONDA_PREFIX points to a micromamba env (no .pixi/envs)
+        process.env.PIXI_IN_SHELL = '1';
+        process.env.CONDA_PREFIX = '/home/user/.micromamba/envs/conflict';
+        process.env.CONDA_DEFAULT_ENV = 'conflict';
+
+        commandCalls = [];
+        await envManager.activate();
+
+        const deactivateCalled = commandCalls.includes('micromamba.deactivate');
+        assert.ok(deactivateCalled, 'Should HAVE called deactivate for nested micromamba env');
+    });
+
+    test('Activate DOES deactivate if CONDA_PREFIX masked but PATH contains micromamba/envs/', async () => {
+        // Command exists
+        vscodeMock.commands.getCommands = (filter: boolean) => Promise.resolve(['micromamba.deactivate']);
+
+        // Simulate masked ID: prefix points to Pixi, but PATH has dirty micromamba
+        process.env.CONDA_PREFIX = '/home/user/project/.pixi/envs/default';
+        process.env.CONDA_DEFAULT_ENV = 'default';
+        // Dirty PATH
+        process.env.PATH = '/home/user/.micromamba/envs/dirty/bin:/usr/bin';
+
+        commandCalls = [];
+        await envManager.activate();
+
+        const deactivateCalled = commandCalls.includes('micromamba.deactivate');
+        assert.ok(deactivateCalled, 'Should HAVE called deactivate due to PATH detection');
     });
 });
