@@ -79,7 +79,7 @@ export class OfflineManager {
 
             await new Promise<void>((resolve, reject) => {
                 const taskDefinition = {
-                    type: 'pixi',
+                    type: 'spark-sdk',
                     task: 'pack'
                 };
 
@@ -145,7 +145,7 @@ export class OfflineManager {
         const scriptPath = uris[0].fsPath;
 
         // 2. Prompt for Name
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         const defaultName = config.get<string>('offlineEnvironmentName', 'env');
 
         const envName = await vscode.window.showInputBox({
@@ -205,7 +205,7 @@ export class OfflineManager {
 
                 await new Promise<void>((resolve, reject) => {
                     const taskDefinition = {
-                        type: 'pixi',
+                        type: 'spark-sdk',
                         task: 'unpack'
                     };
 
@@ -255,7 +255,7 @@ export class OfflineManager {
             await this.envManager.activate(true);
 
             // Check auto-reload config
-            const autoReload = vscode.workspace.getConfiguration('pixi').get<boolean>('autoReload');
+            const autoReload = vscode.workspace.getConfiguration('spark-sdk').get<boolean>('autoReload');
 
             if (autoReload) {
                 vscode.window.showInformationMessage("Offline environment loaded. Reloading window...");
@@ -408,7 +408,7 @@ export class OfflineManager {
             if (!silent) {
                 vscode.window.showInformationMessage(`Offline environment '${envName}' activated.`);
 
-                const config = vscode.workspace.getConfiguration('pixi');
+                const config = vscode.workspace.getConfiguration('spark-sdk');
                 const autoReload = config.get<boolean>('autoReload');
                 if (autoReload) {
                     vscode.window.showInformationMessage("Reloading window to apply changes...");
@@ -423,9 +423,9 @@ export class OfflineManager {
                     }
                 }
             } else {
-                console.log('Pixi environment activated silently.');
+                console.log('SPARK environment activated silently.');
             }
-            vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', true);
+            vscode.commands.executeCommand('setContext', 'spark-sdk.isEnvironmentActive', true);
             this.envManager.updateStatusBar(envName || 'default');
 
         } catch (e: any) {
@@ -464,7 +464,7 @@ export class OfflineManager {
             if (fs.existsSync(pixiDir)) {
                 await vscode.window.withProgress({
                     location: vscode.ProgressLocation.Notification,
-                    title: "Clearing Pixi Environment...",
+                    title: "Clearing SPARK Environment...",
                     cancellable: false
                 }, async () => {
                     await fs.promises.rm(pixiDir, { recursive: true, force: true });
