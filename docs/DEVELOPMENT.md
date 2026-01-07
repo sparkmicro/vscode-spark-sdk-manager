@@ -10,8 +10,8 @@ This document provides instructions on how to set up the environment, build the 
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/jfchenier/vscode-pixi-environment-manager.git
-    cd vscode-pixi-environment-manager
+    git clone https://github.com/sparkmicro/vscode-spark-sdk-manager.git
+    cd vscode-spark-sdk-manager
     ```
 
 2.  **Install dependencies**:

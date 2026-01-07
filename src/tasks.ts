@@ -4,7 +4,7 @@ import { PixiManager } from './pixi';
 import { EnvironmentManager } from './environment';
 
 interface PixiTaskDefinition extends vscode.TaskDefinition {
-    type: 'pixi';
+    type: 'spark-sdk';
     task: string;
     environment?: string;
 }
@@ -25,7 +25,7 @@ interface PixiEnvJson {
 }
 
 export class PixiTaskProvider implements vscode.TaskProvider {
-    static readonly PixiType = 'pixi' as const;
+    static readonly PixiType = 'spark-sdk' as const;
     private pixiPromise: Thenable<vscode.Task[]> | undefined = undefined;
 
     constructor(private workspaceRoot: string, private pixiManager: PixiManager, private environmentManager: EnvironmentManager) { }
@@ -90,7 +90,7 @@ export class PixiTaskProvider implements vscode.TaskProvider {
                             break;
                         }
                     } catch {
-                        console.warn(`Invalid regex in pixi.ignoredEnvironments: ${pattern}`);
+                        console.warn(`Invalid regex in spark-sdk.ignoredEnvironments: ${pattern}`);
                     }
                 }
                 if (isIgnored) {

@@ -62,7 +62,7 @@ suite('Ghost Environment Reproduction Suite', () => {
         const originalGetConfig = vscode.workspace.getConfiguration;
         // @ts-expect-error: Mock implementation
         vscode.workspace.getConfiguration = (section: string) => {
-            if (section === 'pixi') {
+            if (section === 'spark-sdk') {
                 return {
                     get: (key: string, def?: any) => {
                         if (key === 'defaultEnvironment') { return 'default'; }

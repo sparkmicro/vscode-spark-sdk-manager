@@ -207,7 +207,7 @@ suite('Micromamba Conflict Test Suite', () => {
         // Command exists
         vscodeMock.commands.getCommands = (filter: boolean) => Promise.resolve(['micromamba.deactivate']);
 
-        // Simulate a Pixi environment (which sets CONDA_PREFIX for compatibility)
+        // Simulate a SPARK environment (which sets CONDA_PREFIX for compatibility)
         process.env.CONDA_PREFIX = '/home/user/project/.pixi/envs/default';
         process.env.CONDA_DEFAULT_ENV = 'default';
         // process.env.PIXI_IN_SHELL = '1'; // Removed this specific check in favor of path check
