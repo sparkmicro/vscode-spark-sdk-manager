@@ -16,8 +16,8 @@ For a deep dive into how the code works, please see [ARCHITECTURE.md](ARCHITECTU
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/jfchenier/vscode-pixi-environment-manager.git
-    cd vscode-pixi-environment-manager
+    git clone https://github.com/sparkmicro/vscode-spark-sdk-manager.git
+    cd vscode-spark-sdk-manager
     ```
 
 2.  **Install Dependencies**:

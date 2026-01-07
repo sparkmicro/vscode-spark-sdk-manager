@@ -4,35 +4,35 @@ import { EnvironmentManager } from './environment';
 
 export async function activate(context: vscode.ExtensionContext) {
 
-    const outputChannel = vscode.window.createOutputChannel("Pixi");
+    const outputChannel = vscode.window.createOutputChannel("SPARK SDK");
     const pixiManager = new PixiManager(outputChannel);
     const envManager = new EnvironmentManager(pixiManager, context, outputChannel);
 
-    const createEnvDisposable = vscode.commands.registerCommand('pixi.createEnvironment', () => {
+    const createEnvDisposable = vscode.commands.registerCommand('spark-sdk.createEnvironment', () => {
         envManager.createEnvironment();
     });
 
-    const loadOfflineEnvDisposable = vscode.commands.registerCommand('pixi.loadOfflineEnvironment', async () => {
+    const loadOfflineEnvDisposable = vscode.commands.registerCommand('spark-sdk.loadOfflineEnvironment', async () => {
         await envManager.loadOfflineEnvironment();
     });
 
-    const activateDisposable = vscode.commands.registerCommand('pixi.activate', async () => {
+    const activateDisposable = vscode.commands.registerCommand('spark-sdk.activate', async () => {
         await envManager.activate();
     });
 
-    const deactivateDisposable = vscode.commands.registerCommand('pixi.deactivate', async () => {
+    const deactivateDisposable = vscode.commands.registerCommand('spark-sdk.deactivate', async () => {
         await envManager.deactivate();
     });
 
-    const clearDisposable = vscode.commands.registerCommand('pixi.clear', async () => {
+    const clearDisposable = vscode.commands.registerCommand('spark-sdk.clear', async () => {
         await envManager.clearEnvironment();
     });
 
-    const generateOfflineDisposable = vscode.commands.registerCommand('pixi.generateOffline', async () => {
+    const generateOfflineDisposable = vscode.commands.registerCommand('spark-sdk.generateOffline', async () => {
         await envManager.generateOfflineEnvironment();
     });
 
-    const generateScriptsDisposable = vscode.commands.registerCommand('pixi.generateScripts', async () => {
+    const generateScriptsDisposable = vscode.commands.registerCommand('spark-sdk.generateScripts', async () => {
         await envManager.generateScripts();
     });
 
@@ -55,7 +55,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Listen for configuration changes to trigger auto-activation if defaultEnvironment changes
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
-        if (e.affectsConfiguration('pixi.defaultEnvironment')) {
+        if (e.affectsConfiguration('spark-sdk.defaultEnvironment')) {
             envManager.autoActivate();
         }
     }));

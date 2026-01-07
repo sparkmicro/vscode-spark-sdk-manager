@@ -79,7 +79,7 @@ export class PixiManager {
 
     private log(message: string) {
         if (this._outputChannel) {
-            this._outputChannel.appendLine(`[PixiManager] ${message}`);
+            this._outputChannel.appendLine(`[SPARK Toolchain] ${message}`);
         }
     }
 
@@ -302,7 +302,7 @@ export class PixiManager {
         await execAsync(`"${pixi}" install`, { cwd: this._workspaceUri.fsPath });
     }
     public async checkUpdate(context: vscode.ExtensionContext): Promise<void> {
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         if (!config.get<boolean>('checkUpdates', true)) {
             return;
         }
@@ -322,7 +322,7 @@ export class PixiManager {
                 const newVersion = match[1].trim();
 
                 const selection = await vscode.window.showInformationMessage(
-                    `A new version of Pixi (${newVersion}) is available.`,
+                    `A new version of Pixi for the SPARK SDK (${newVersion}) is available.`,
                     "Update Now",
                     "Later",
                     "Don't Ask Again"
@@ -343,7 +343,7 @@ export class PixiManager {
     private async updatePixi(pixiPath: string): Promise<void> {
         await vscode.window.withProgress({
             location: vscode.ProgressLocation.Notification,
-            title: "Updating Pixi...",
+            title: "Updating Pixi..",
             cancellable: false
         }, async () => {
             try {

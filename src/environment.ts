@@ -25,7 +25,7 @@ export class EnvironmentManager {
 
         // Initialize Status Bar Item
         this._statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-        this._statusBarItem.command = 'pixi.activate'; // Click to switch/activate
+        this._statusBarItem.command = 'spark-sdk.activate'; // Click to switch/activate
         this._context.subscriptions.push(this._statusBarItem);
 
         // Initial Context Check
@@ -45,11 +45,11 @@ export class EnvironmentManager {
             const hasPixiDir = fs.existsSync(pixiDir);
             const hasToml = fs.existsSync(tomlPath);
 
-            vscode.commands.executeCommand('setContext', 'pixi.hasPixiDirectory', hasPixiDir);
-            vscode.commands.executeCommand('setContext', 'pixi.hasProjectManifest', hasToml);
+            vscode.commands.executeCommand('setContext', 'spark-sdk.hasProjectDirectory', hasPixiDir);
+            vscode.commands.executeCommand('setContext', 'spark-sdk.hasProjectManifest', hasToml);
 
             this._pixiManager.isPixiInstalled().then(isInstalled => {
-                vscode.commands.executeCommand('setContext', 'pixi.isPixiInstalled', isInstalled);
+                vscode.commands.executeCommand('setContext', 'spark-sdk.isToolchainInstalled', isInstalled);
             });
         }
     }
@@ -63,10 +63,10 @@ export class EnvironmentManager {
     private updateStatusBar(envName?: string) {
         if (envName) {
             this._statusBarItem.text = `$(terminal) ${envName}`;
-            this._statusBarItem.tooltip = `Pixi Environment: ${envName}`;
+            this._statusBarItem.tooltip = `SPARK Environment: ${envName}`;
         } else {
-            this._statusBarItem.text = `$(terminal) Pixi`;
-            this._statusBarItem.tooltip = `Click to Activate or Create Pixi Environment`;
+            this._statusBarItem.text = `$(terminal) SPARK`;
+            this._statusBarItem.tooltip = `Click to Activate or Create SPARK Environment`;
         }
         this._statusBarItem.show();
     }
@@ -97,7 +97,7 @@ export class EnvironmentManager {
                 vscode.window.showInformationMessage("pixi.toml found.");
             } else {
                 await this._pixiManager.initProject();
-                vscode.window.showInformationMessage("Pixi project initialized.");
+                vscode.window.showInformationMessage("SPARK project initialized.");
             }
 
             // Auto-activate after creation/install
@@ -146,7 +146,7 @@ export class EnvironmentManager {
 
         // If no saved environment from a previous session, check user configuration
         if (!savedEnv) {
-            const config = vscode.workspace.getConfiguration('pixi');
+            const config = vscode.workspace.getConfiguration('spark-sdk');
             const defaultEnv = config.get<string>('defaultEnvironment');
             this.log(`AutoActivate: Configured default is '${defaultEnv}'`);
 
@@ -184,7 +184,7 @@ export class EnvironmentManager {
 
         // Just in case no environment is saved/found, ensure context is false
         if (!savedEnv) {
-            vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', false);
+            vscode.commands.executeCommand('setContext', 'spark-sdk.isEnvironmentActive', false);
         }
 
         if (savedEnv) {
@@ -209,7 +209,7 @@ export class EnvironmentManager {
         }
     }
 
-    private static readonly cachedEnvKey = 'pixi.cachedEnv';
+    private static readonly cachedEnvKey = 'spark.cachedEnv';
 
     private async doActivate(envName: string, silent: boolean, forceInstall: boolean = false) {
 
@@ -219,11 +219,11 @@ export class EnvironmentManager {
         const pixiPath = this._pixiManager.getPixiPath();
 
         if (!silent) {
-            const config = vscode.workspace.getConfiguration('pixi');
+            const config = vscode.workspace.getConfiguration('spark-sdk');
             const autoReload = config.get<boolean>('autoReload');
             if (autoReload) {
                 const action = forceInstall ? "Creating" : "Activating";
-                vscode.window.showInformationMessage(`Pixi: ${action} environment... (Auto-reloading)`);
+                vscode.window.showInformationMessage(`SPARK: ${action} environment... (Auto-reloading)`);
             }
         }
 
@@ -232,7 +232,7 @@ export class EnvironmentManager {
             try {
                 await this.runInstallInTerminal(pixiPath!, workspaceUri, envName);
             } catch (e: any) {
-                vscode.window.showErrorMessage(`Pixi install failed: ${e.message}`);
+                vscode.window.showErrorMessage(`Toolchain install failed: ${e.message}`);
                 return; // Stop activation if install fails
             }
         }
@@ -246,7 +246,7 @@ export class EnvironmentManager {
 
             // Show progress (less confusing title now)
             const location = silent ? vscode.ProgressLocation.Window : vscode.ProgressLocation.Notification;
-            const title = "Activating Pixi Environment (syncing)...";
+            const title = "Activating SPARK Environment (syncing)...";
 
             const { stdout, stderr } = await vscode.window.withProgress({
                 location,
@@ -306,10 +306,10 @@ export class EnvironmentManager {
 
 
             if (!silent) {
-                const config = vscode.workspace.getConfiguration('pixi');
+                const config = vscode.workspace.getConfiguration('spark-sdk');
                 const autoReload = config.get<boolean>('autoReload');
 
-                vscode.window.showInformationMessage(`Pixi environment '${envName || 'default'}' activated.`);
+                vscode.window.showInformationMessage(`SPARK environment '${envName || 'default'}' activated.`);
 
                 if (autoReload) {
                     vscode.window.showInformationMessage("Reloading window to apply changes...");
@@ -334,9 +334,9 @@ export class EnvironmentManager {
                     this._context.environmentVariableCollection.prepend('PROMPT_COMMAND', `if [ -n "$PIXI_ACTIVATION_MSG" ]; then echo "$PIXI_ACTIVATION_MSG"; unset PIXI_ACTIVATION_MSG; fi; `);
                 }
             } else {
-                console.log('Pixi environment activated silently.');
+                console.log('SPARK environment activated silently.');
             }
-            vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', true);
+            vscode.commands.executeCommand('setContext', 'spark-sdk.isEnvironmentActive', true);
 
 
 
@@ -431,7 +431,7 @@ export class EnvironmentManager {
         await this._context.workspaceState.update(EnvironmentManager.cachedEnvKey, undefined);
 
         // Reset configuration to default if it was set to the offline env
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         const offlineName = config.get<string>('offlineEnvironmentName', 'env');
         const currentConfigEnv = config.get<string>('environment');
 
@@ -442,7 +442,7 @@ export class EnvironmentManager {
         // Clear environment variables
         // When EXPLICITLY deactivating, we DO want to clear them.
         // The previous logic to NOT clear was for "closing window but keeping state".
-        // But "Pixi: Deactivate" means "Stop using this Env".
+        // But "SPARK: Deactivate" means "Stop using this Env".
         this._context.environmentVariableCollection.clear();
 
         if (!silent) {
@@ -466,7 +466,7 @@ export class EnvironmentManager {
             this._terminalListener.dispose();
             this._terminalListener = undefined;
         }
-        vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', false);
+        vscode.commands.executeCommand('setContext', 'spark-sdk.isEnvironmentActive', false);
         this.updateStatusBar(undefined);
     }
 
@@ -1003,7 +1003,7 @@ if exist "%SCRIPT_DIR%activate.bat" (
         const scriptPath = uri[0].fsPath;
 
         // 2. Prepare Target Directory
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         const envName = config.get<string>('offlineEnvironmentName', 'env');
         const envsDir = path.join(workspaceRoot, '.pixi', 'envs');
         const targetEnvDir = path.join(envsDir, envName);
@@ -1105,7 +1105,7 @@ if exist "%SCRIPT_DIR%activate.bat" (
             await this.activate(true);
 
             // Check auto-reload config
-            const autoReload = vscode.workspace.getConfiguration('pixi').get<boolean>('autoReload');
+            const autoReload = vscode.workspace.getConfiguration('spark-sdk').get<boolean>('autoReload');
 
             if (autoReload) {
                 vscode.window.showInformationMessage("Offline environment loaded. Reloading window...");
@@ -1128,7 +1128,7 @@ if exist "%SCRIPT_DIR%activate.bat" (
 
     public async activate(silent: boolean = false): Promise<void> {
         // Check for Offline Mode
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         const offlineName = config.get<string>('offlineEnvironmentName', 'env');
         const workspaceRoot = this.getWorkspaceFolderURI()?.fsPath;
 
@@ -1462,7 +1462,7 @@ if exist "%SCRIPT_DIR%activate.bat" (
             if (!silent) {
                 vscode.window.showInformationMessage(`Offline environment '${envName}' activated.`);
 
-                const config = vscode.workspace.getConfiguration('pixi');
+                const config = vscode.workspace.getConfiguration('spark-sdk');
                 const autoReload = config.get<boolean>('autoReload');
                 if (autoReload) {
                     vscode.window.showInformationMessage("Reloading window to apply changes...");

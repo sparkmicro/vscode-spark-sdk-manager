@@ -87,27 +87,27 @@ suite('Command Visibility Context Test Suite', () => {
         mockFs = {};
     });
 
-    test('Initial Context: No .pixi folder -> pixi.hasPixiDirectory = false', () => {
-        new EnvironmentManager(new MockPixiManager(), { subscriptions: [], workspaceState: { get: () => undefined, update: () => Promise.resolve() } }, undefined);
+    test('Initial Context: No .pixi folder -> spark-sdk.hasProjectDirectory = false', () => {
+        const envManager = new EnvironmentManager(new MockPixiManager(), { subscriptions: [], workspaceState: { get: () => undefined, update: () => Promise.resolve() } }, undefined);
 
-        const setContextCall = recordedCommands.find(c => c.key === 'pixi.hasPixiDirectory');
-        assert.ok(setContextCall, 'Should update pixi.hasPixiDirectory context');
+        const setContextCall = recordedCommands.find(c => c.key === 'spark-sdk.hasProjectDirectory');
+        assert.ok(setContextCall, 'Should update spark-sdk.hasProjectDirectory context');
         assert.strictEqual(setContextCall!.value, false, 'Should be false when folder is missing');
     });
 
-    test('Initial Context: With .pixi folder -> pixi.hasPixiDirectory = true', () => {
+    test('Initial Context: With .pixi folder -> spark-sdk.hasProjectDirectory = true', () => {
         mockFs['.pixi'] = true; // /mock/workspace/.pixi
         new EnvironmentManager(new MockPixiManager(), {
             subscriptions: [],
             workspaceState: { get: () => undefined, update: () => Promise.resolve() }
         }, undefined);
 
-        const setContextCall = recordedCommands.find(c => c.key === 'pixi.hasPixiDirectory');
-        assert.ok(setContextCall, 'Should update pixi.hasPixiDirectory context');
+        const setContextCall = recordedCommands.find(c => c.key === 'spark-sdk.hasProjectDirectory');
+        assert.ok(setContextCall, 'Should update spark-sdk.hasProjectDirectory context');
         assert.strictEqual(setContextCall!.value, true, 'Should be true when folder exists');
     });
 
-    test('Activate Environment -> pixi.isEnvironmentActive = true', async () => {
+    test('Activate Environment -> spark-sdk.isEnvironmentActive = true', async () => {
         mockFs['.pixi'] = true;
         // Mock context for environment variable collection
         const mockContext = {
@@ -131,12 +131,12 @@ suite('Command Visibility Context Test Suite', () => {
 
         await envManager.activate(true); // Silent activate default
 
-        const activeCall = recordedCommands.find(c => c.key === 'pixi.isEnvironmentActive');
-        assert.ok(activeCall, 'Should set pixi.isEnvironmentActive');
+        const activeCall = recordedCommands.find(c => c.key === 'spark-sdk.isEnvironmentActive');
+        assert.ok(activeCall, 'Should set spark-sdk.isEnvironmentActive');
         assert.strictEqual(activeCall!.value, true, 'Should be active after activation');
     });
 
-    test('Deactivate Environment -> pixi.isEnvironmentActive = false', async () => {
+    test('Deactivate Environment -> spark-sdk.isEnvironmentActive = false', async () => {
         const mockContext = {
             environmentVariableCollection: { clear: () => { }, replace: () => { } },
             workspaceState: { get: () => 'default', update: () => Promise.resolve() },
@@ -148,8 +148,8 @@ suite('Command Visibility Context Test Suite', () => {
 
         await envManager.deactivate(true);
 
-        const activeCall = recordedCommands.find(c => c.key === 'pixi.isEnvironmentActive');
-        assert.ok(activeCall, 'Should set pixi.isEnvironmentActive');
+        const activeCall = recordedCommands.find(c => c.key === 'spark-sdk.isEnvironmentActive');
+        assert.ok(activeCall, 'Should set spark-sdk.isEnvironmentActive');
         assert.strictEqual(activeCall!.value, false, 'Should be inactive after deactivation');
     });
 
@@ -169,8 +169,8 @@ suite('Command Visibility Context Test Suite', () => {
         // We need to wait for the async check in constructor to settle.
         await new Promise(r => setTimeout(r, 10)); // Yield
 
-        let installCall = recordedCommands.find(c => c.key === 'pixi.isPixiInstalled');
-        assert.ok(installCall, 'Should set pixi.isPixiInstalled');
+        let installCall = recordedCommands.find(c => c.key === 'spark-sdk.isToolchainInstalled');
+        assert.ok(installCall, 'Should set spark-sdk.isToolchainInstalled');
         assert.strictEqual(installCall?.value, false, 'Should be false initially');
 
         recordedCommands = [];
@@ -183,8 +183,8 @@ suite('Command Visibility Context Test Suite', () => {
 
         await new Promise(r => setTimeout(r, 10)); // Yield
 
-        installCall = recordedCommands.find(c => c.key === 'pixi.isPixiInstalled');
-        assert.ok(installCall, 'Should set pixi.isPixiInstalled');
+        installCall = recordedCommands.find(c => c.key === 'spark-sdk.isToolchainInstalled');
+        assert.ok(installCall, 'Should set spark-sdk.isToolchainInstalled');
         assert.strictEqual(installCall?.value, true, 'Should be true after install');
     });
 });

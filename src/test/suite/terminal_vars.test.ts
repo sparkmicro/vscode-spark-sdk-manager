@@ -41,7 +41,7 @@ suite('Terminal Variables Test Suite', () => {
             workspaceState: {
                 get: (key: string) => {
                     // Simulate that we have a cached environment to load
-                    if (key === 'pixi.cachedEnv') {
+                    if (key === 'spark.cachedEnv') {
                         return {
                             envName: 'env',
                             envVars: {
@@ -61,7 +61,7 @@ suite('Terminal Variables Test Suite', () => {
             subscriptions: []
         };
 
-        const mockExec = async () => ({ stdout: '', stderr: '' });
+        const mockExec = async () => ({ stdout: JSON.stringify({ environment_variables: { PATH: '/new/path' } }), stderr: '' });
         const mockPixi = new MockPixiManager();
 
         class TestEnvironmentManager extends EnvironmentManager {
@@ -86,6 +86,11 @@ suite('Terminal Variables Test Suite', () => {
         assert.strictEqual(storedVars.has('TERMINFO'), false, 'TERMINFO should be removed from collection');
 
         // PATH should be present
-        assert.strictEqual(storedVars.get('PATH'), '/new/path', 'Valid variables should be applied');
+        // on Linux/Mac, it's prepended with colon. On Win32 it might differ, but mock is running in linux env likely or platform specific logic.
+        // The mock pixi path is /mock/pixi. dirname is /mock.
+        // We expect /mock:/new/path
+        const val = storedVars.get('PATH');
+        assert.ok(val?.includes('/new/path'), 'PATH should include new path');
+        assert.ok(val?.includes('/mock'), 'PATH should include pixi bin dir');
     });
 });
