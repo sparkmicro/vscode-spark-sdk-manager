@@ -266,12 +266,12 @@ export class EnvironmentManager {
             for (const [key, update] of envUpdates) {
                 let { value, op } = update;
                 // op is always 'replace' now with JSON strategy
-                
+
                 // We still ensure local pixi bin is in PATH just in case, though it should be in JSON.
                 if (key === 'PATH' && pixiPath) {
                     const pixiBinDir = path.dirname(pixiPath);
                     if (!value.includes(pixiBinDir)) {
-                         value = `${pixiBinDir}${path.delimiter}${value}`;
+                        value = `${pixiBinDir}${path.delimiter}${value}`;
                     }
                 }
 
@@ -300,13 +300,13 @@ export class EnvironmentManager {
                 }
                 // Inject activation output into terminal startup (Bash/Zsh)
                 if (stderr && stderr.trim().length > 0 && process.platform !== 'win32') {
-                     const msg = stderr.trim().replace(/'/g, "'\\''"); // Escape single quotes
-                     // We use PROMPT_COMMAND to run once then self-destruct mechanism (sort of).
-                     // Actually simplest is: print if var set, then unset var.
-                     this._context.environmentVariableCollection.replace('PIXI_ACTIVATION_MSG', msg);
-                     // Prepend ensures it runs before other prompts (or use append?)
-                     // PROMPT_COMMAND is bash.
-                     this._context.environmentVariableCollection.prepend('PROMPT_COMMAND', `if [ -n "$PIXI_ACTIVATION_MSG" ]; then echo "$PIXI_ACTIVATION_MSG"; unset PIXI_ACTIVATION_MSG; fi; `);
+                    const msg = stderr.trim().replace(/'/g, "'\\''"); // Escape single quotes
+                    // We use PROMPT_COMMAND to run once then self-destruct mechanism (sort of).
+                    // Actually simplest is: print if var set, then unset var.
+                    this._context.environmentVariableCollection.replace('PIXI_ACTIVATION_MSG', msg);
+                    // Prepend ensures it runs before other prompts (or use append?)
+                    // PROMPT_COMMAND is bash.
+                    this._context.environmentVariableCollection.prepend('PROMPT_COMMAND', `if [ -n "$PIXI_ACTIVATION_MSG" ]; then echo "$PIXI_ACTIVATION_MSG"; unset PIXI_ACTIVATION_MSG; fi; `);
                 }
             } else {
                 console.log('Pixi environment activated silently.');
@@ -354,7 +354,7 @@ export class EnvironmentManager {
             };
 
             const installCmd = `"${pixiPath}" install${envName ? ` -e "${envName}"` : ''}`;
-            
+
             // To satisfy user request to see activation script output (echoes) in the terminal:
             // We chain `pixi shell-hook` after install.
             // We redirect stdout to /dev/null (Linux/Mac) or NUL (Windows) to suppress the huge JSON/Export dump,
@@ -375,7 +375,7 @@ export class EnvironmentManager {
                 // But users might use CMD.
                 // Let's focus on the `echo` requirement primarily if shell-hook is too risky on Windows.
                 // But specifically for Linux (User's OS), we can do it standard.
-                fullCommand = `echo '${msg}' ; ${installCmd}`; 
+                fullCommand = `echo '${msg}' ; ${installCmd}`;
             } else {
                 // Linux/Mac: standard bash-like syntax
                 // IMPORTANT: We must EVAL the output of shell-hook to actually RUN the activation scripts (e.g. source activate.sh)

@@ -190,4 +190,57 @@ export class PixiManager {
         this.log(`Executing: "${pixi}" install`);
         await execAsync(`"${pixi}" install`, { cwd: this._workspaceUri.fsPath });
     }
+    public async checkUpdate(context: vscode.ExtensionContext): Promise<void> {
+        const config = vscode.workspace.getConfiguration('pixi');
+        if (!config.get<boolean>('checkUpdates', true)) {
+            return;
+        }
+
+        const pixiPath = this.getPixiPath();
+        if (!pixiPath) return;
+
+        try {
+            // Run dry-run to check for updates
+            // Output format: "Pixi version would be updated from X.Y.Z to A.B.C, but --dry-run given."
+            const { stderr, stdout } = await execAsync(`"${pixiPath}" self-update --dry-run`);
+            // Pixi often writes to stderr for info messages
+            const output = stdout + stderr;
+
+            const match = output.match(/updated from .* to (.*),/);
+            if (match && match[1]) {
+                const newVersion = match[1].trim();
+
+                const selection = await vscode.window.showInformationMessage(
+                    `A new version of Pixi (${newVersion}) is available.`,
+                    "Update Now",
+                    "Later",
+                    "Don't Ask Again"
+                );
+
+                if (selection === "Update Now") {
+                    await this.updatePixi(pixiPath);
+                } else if (selection === "Don't Ask Again") {
+                    await config.update('checkUpdates', false, vscode.ConfigurationTarget.Global);
+                }
+            }
+        } catch (e: any) {
+            // If self-update fails or is not supported, just log and ignore
+            this.log(`Update check failed: ${e.message}`);
+        }
+    }
+
+    private async updatePixi(pixiPath: string): Promise<void> {
+        await vscode.window.withProgress({
+            location: vscode.ProgressLocation.Notification,
+            title: "Updating Pixi...",
+            cancellable: false
+        }, async () => {
+            try {
+                await execAsync(`"${pixiPath}" self-update`);
+                vscode.window.showInformationMessage("Pixi updated successfully.");
+            } catch (e: any) {
+                vscode.window.showErrorMessage(`Failed to update Pixi: ${e.message}`);
+            }
+        });
+    }
 }

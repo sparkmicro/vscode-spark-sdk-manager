@@ -17,7 +17,7 @@ export async function activate(context: vscode.ExtensionContext) {
     });
 
     let activateDisposable = vscode.commands.registerCommand('pixi.activate', async () => {
-        await envManager.activate(); 
+        await envManager.activate();
     });
 
     let deactivateDisposable = vscode.commands.registerCommand('pixi.deactivate', async () => {
@@ -48,6 +48,11 @@ export async function activate(context: vscode.ExtensionContext) {
 
     // Auto-activate saved environment
     await envManager.autoActivate();
+
+    // Check for updates (non-blocking)
+    pixiManager.checkUpdate(context).catch(e => {
+        console.error("Failed to check for updates:", e);
+    });
 }
 
 

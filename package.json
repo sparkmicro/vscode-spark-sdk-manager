@@ -9,7 +9,7 @@
     "url": "https://github.com/jfchenier/jfchenier-SPARK-Pixi-vscode-extension.git"
   },
   "license": "MIT",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -42,8 +42,12 @@
         },
         "pixi.autoReload": {
           "type": "boolean",
-          "default": false,
           "description": "If set to true, the VS Code window will automatically reload after an environment is activated or deactivated."
+        },
+        "pixi.checkUpdates": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically check for Pixi updates on startup."
         }
       }
     },
