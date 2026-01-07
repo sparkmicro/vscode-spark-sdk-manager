@@ -5,35 +5,35 @@ import { PixiTaskProvider } from './tasks';
 
 export async function activate(context: vscode.ExtensionContext) {
 
-    const outputChannel = vscode.window.createOutputChannel("Pixi");
+    const outputChannel = vscode.window.createOutputChannel("SPARK SDK");
     const pixiManager = new PixiManager(outputChannel);
     const envManager = new EnvironmentManager(pixiManager, context, outputChannel);
 
-    const createEnvDisposable = vscode.commands.registerCommand('pixi.createEnvironment', () => {
+    const createEnvDisposable = vscode.commands.registerCommand('spark-sdk.createEnvironment', () => {
         envManager.createEnvironment();
     });
 
-    const loadOfflineEnvDisposable = vscode.commands.registerCommand('pixi.loadOfflineEnvironment', async () => {
+    const loadOfflineEnvDisposable = vscode.commands.registerCommand('spark-sdk.loadOfflineEnvironment', async () => {
         await envManager.loadOfflineEnvironment();
     });
 
-    const activateDisposable = vscode.commands.registerCommand('pixi.activate', async () => {
+    const activateDisposable = vscode.commands.registerCommand('spark-sdk.activate', async () => {
         await envManager.activate();
     });
 
-    const deactivateDisposable = vscode.commands.registerCommand('pixi.deactivate', async () => {
+    const deactivateDisposable = vscode.commands.registerCommand('spark-sdk.deactivate', async () => {
         await envManager.deactivate();
     });
 
-    const clearDisposable = vscode.commands.registerCommand('pixi.clear', async () => {
+    const clearDisposable = vscode.commands.registerCommand('spark-sdk.clear', async () => {
         await envManager.clearEnvironment();
     });
 
-    const generateOfflineDisposable = vscode.commands.registerCommand('pixi.generateOffline', async () => {
+    const generateOfflineDisposable = vscode.commands.registerCommand('spark-sdk.generateOffline', async () => {
         await envManager.generateOfflineEnvironment();
     });
 
-    const generateScriptsDisposable = vscode.commands.registerCommand('pixi.generateScripts', async () => {
+    const generateScriptsDisposable = vscode.commands.registerCommand('spark-sdk.generateScripts', async () => {
         await envManager.generateScripts();
     });
 
@@ -51,13 +51,13 @@ export async function activate(context: vscode.ExtensionContext) {
     pixiManager.checkAndPromptSystemPixi(context);
 
     // Auto-activate saved environment
-    outputChannel.appendLine("Pixi: Attempting auto-activation on startup...");
+    outputChannel.appendLine("SPARK: Attempting auto-activation on startup...");
     await envManager.autoActivate();
 
 
     // Listen for configuration changes to trigger auto-activation if defaultEnvironment changes
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
-        if (e.affectsConfiguration('pixi.defaultEnvironment')) {
+        if (e.affectsConfiguration('spark-sdk.defaultEnvironment')) {
             envManager.autoActivate(true);
         }
     }));
@@ -75,11 +75,11 @@ export async function activate(context: vscode.ExtensionContext) {
         // Use RelativePattern for better reliability across different OS/Git operations
         const pattern = new vscode.RelativePattern(workspaceFolder, "**/{pixi.toml,pixi.lock}");
         watcher = vscode.workspace.createFileSystemWatcher(pattern);
-        outputChannel.appendLine("Pixi: Config Watcher initialized with RelativePattern.");
+        outputChannel.appendLine("SPARK: Config Watcher initialized with RelativePattern.");
     } else {
         // Fallback for empty workspace or global files
         watcher = vscode.workspace.createFileSystemWatcher('**/pixi.{toml,lock}');
-        outputChannel.appendLine("Pixi: Config Watcher initialized with global pattern.");
+        outputChannel.appendLine("SPARK: Config Watcher initialized with global pattern.");
     }
 
     let debounceTimer: NodeJS.Timeout;
@@ -91,7 +91,7 @@ export async function activate(context: vscode.ExtensionContext) {
             return;
         }
 
-        outputChannel.appendLine(`Pixi: Config change detected on ${fsPath}`);
+        outputChannel.appendLine(`SPARK: Config change detected on ${fsPath}`);
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
             // Unified check respecting 'disableConfigChangePrompt'.
@@ -111,7 +111,7 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(doc => {
         const fsPath = doc.uri.fsPath;
         if (fsPath.endsWith('pixi.toml') || fsPath.endsWith('pixi.lock')) {
-            outputChannel.appendLine(`Pixi: Document saved in editor: ${fsPath}`);
+            outputChannel.appendLine(`SPARK: Document saved in editor: ${fsPath}`);
             handleConfigChange(doc.uri);
         }
     }));
@@ -122,7 +122,7 @@ export async function activate(context: vscode.ExtensionContext) {
         context.subscriptions.push(vscode.tasks.registerTaskProvider(PixiTaskProvider.PixiType, taskProvider));
 
         // Command: Run Task
-        context.subscriptions.push(vscode.commands.registerCommand('pixi.runTask', async () => {
+        context.subscriptions.push(vscode.commands.registerCommand('spark-sdk.runTask', async () => {
             const tasks = await taskProvider.provideTasks();
             if (!tasks || tasks.length === 0) {
                 vscode.window.showInformationMessage('No tasks found in pixi.toml.');
@@ -136,7 +136,7 @@ export async function activate(context: vscode.ExtensionContext) {
             }));
 
             const selection = await vscode.window.showQuickPick(items, {
-                placeHolder: 'Select a Pixi task to run'
+                placeHolder: 'Select a SPARK task to run'
             });
 
             if (selection) {
@@ -146,8 +146,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
         // Status Bar Item
         const statusBarTask = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 0);
-        statusBarTask.text = "$(play) Pixi Tasks";
-        statusBarTask.command = "pixi.runTask";
+        statusBarTask.text = "$(play) SPARK Tasks";
+        statusBarTask.command = "spark-sdk.runTask";
         statusBarTask.tooltip = "Run a Pixi task";
         statusBarTask.show();
         context.subscriptions.push(statusBarTask);
