@@ -184,7 +184,7 @@ suite('System Pixi Support Test Suite', () => {
         mockConfig['autoReload'] = false;
 
         const pm = new PixiManager();
-        let reloadCommandCalled = false;
+
         let reloadPromptShown = false;
 
         // Mock window to capture second prompt
