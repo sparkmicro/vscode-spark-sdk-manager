@@ -204,7 +204,7 @@ if ! command -v pixi &> /dev/null; then
 fi
 
 # 2. Activate
-echo "Activating Pixi Environment..."
+echo "Activating SPARK Environment..."
 if [ -f "activate.sh" ]; then
     source activate.sh
 else
