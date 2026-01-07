@@ -1,12 +1,12 @@
 {
-  "name": "pixi-vscode-env",
-  "displayName": "Pixi Environment Manager",
-  "description": "Manages and injects the Pixi environment into the full VS Code window context.",
-  "icon": "assets/pixi-logo.png",
+  "name": "spark-sdk-vscode",
+  "displayName": "SPARK SDK",
+  "description": "Official VS Code extension for the SPARK Microsystems SDK. Manages toolchains and environments using Pixi.",
+  "icon": "assets/SPARK-logo.png",
   "publisher": "jfchenier",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jfchenier/vscode-pixi-environment-manager.git"
+    "url": "https://github.com/sparkmicro/vscode-spark-sdk-manager.git"
   },
   "license": "MIT",
   "version": "0.0.25",
@@ -23,43 +23,43 @@
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
-      "title": "Pixi",
+      "title": "SPARK SDK",
       "properties": {
-        "pixi.defaultEnvironment": {
+        "spark-sdk.defaultEnvironment": {
           "type": "string",
           "default": "",
           "description": "Specifies the default Pixi environment to automatically activate on startup if no previous environment state is found."
         },
-        "pixi.environment": {
+        "spark-sdk.environment": {
           "type": "string",
           "default": "default",
           "description": "The fallback environment name to use during activation if no specific environment is selected."
         },
-        "pixi.offlineEnvironmentName": {
+        "spark-sdk.offlineEnvironmentName": {
           "type": "string",
           "default": "env",
           "description": "The name given to the directory when unpacking an offline environment."
         },
-        "pixi.autoReload": {
+        "spark-sdk.autoReload": {
           "type": "boolean",
           "description": "If set to true, the VS Code window will automatically reload after an environment is activated or deactivated."
         },
-        "pixi.checkUpdates": {
+        "spark-sdk.checkUpdates": {
           "type": "boolean",
           "default": true,
           "description": "Automatically check for Pixi updates on startup."
         },
-        "pixi.useSystemPixi": {
+        "spark-sdk.useSystemPixi": {
           "type": "boolean",
           "default": false,
           "description": "If true, the extension will use the System 'pixi' executable instead of the self-contained one."
         },
-        "pixi.showDefaultEnvironment": {
+        "spark-sdk.showDefaultEnvironment": {
           "type": "boolean",
           "default": false,
           "description": "If true, the 'default' environment will be included in the environment selection list."
         },
-        "pixi.disableConfigChangePrompt": {
+        "spark-sdk.disableConfigChangePrompt": {
           "type": "boolean",
           "default": false,
           "description": "If true, suppresses prompts when the Pixi environment (lockfile) is out of sync with the manifest."
@@ -76,73 +76,74 @@
     },
     "commands": [
       {
-        "command": "pixi.createEnvironment",
-        "title": "Create Environment",
-        "category": "Pixi Env"
+        "command": "spark-sdk.createEnvironment",
+        "title": "Create SPARK Environment",
+        "category": "SPARK"
       },
       {
-        "command": "pixi.generateOffline",
+        "command": "spark-sdk.generateOffline",
         "title": "Generate Offline Environment",
-        "category": "Pixi Env"
+        "category": "SPARK"
       },
       {
-        "command": "pixi.loadOfflineEnvironment",
+        "command": "spark-sdk.loadOfflineEnvironment",
         "title": "Load Offline Environment",
-        "category": "Pixi Env"
+        "category": "SPARK"
       },
       {
-        "command": "pixi.generateScripts",
+        "command": "spark-sdk.generateScripts",
         "title": "Generate Activation Scripts",
-        "category": "Pixi Env"
+        "category": "SPARK"
       },
       {
-        "command": "pixi.activate",
+        "command": "spark-sdk.activate",
         "title": "Activate Environment",
-        "category": "Pixi Env"
+        "category": "SPARK"
       },
       {
-        "command": "pixi.deactivate",
+        "command": "spark-sdk.deactivate",
         "title": "Deactivate Environment",
-        "category": "Pixi Env"
+        "category": "SPARK"
       },
       {
-        "command": "pixi.runTask",
+        "command": "spark-sdk.runTask",
         "title": "Run Task",
-        "category": "Pixi Env"
+        "category": "SPARK",
+        "icon": "$(play)"
       },
       {
-        "command": "pixi.clear",
+        "command": "spark-sdk.clear",
         "title": "Clear Environment",
-        "category": "Pixi Env"
+        "category": "SPARK"
       }
     ],
     "menus": {
       "commandPalette": [
         {
-          "command": "pixi.clear",
-          "when": "pixi.hasPixiDirectory"
+          "command": "spark-sdk.clear",
+          "when": "spark-sdk.hasProjectDirectory"
         },
         {
-          "command": "pixi.deactivate",
-          "when": "pixi.isEnvironmentActive"
+          "command": "spark-sdk.deactivate",
+          "when": "spark-sdk.isEnvironmentActive"
         },
         {
-          "command": "pixi.generateOffline",
-          "when": "pixi.hasProjectManifest && pixi.isPixiInstalled"
+          "command": "spark-sdk.generateOffline",
+          "when": "spark-sdk.hasProjectManifest && spark-sdk.isToolchainInstalled"
         },
         {
-          "command": "pixi.runTask",
-          "when": "pixi.hasProjectManifest && pixi.isPixiInstalled"
+          "command": "spark-sdk.runTask",
+          "when": "spark-sdk.hasProjectManifest && spark-sdk.isToolchainInstalled"
         },
         {
-          "command": "pixi.activate",
-          "when": "pixi.hasPixiDirectory"
+          "command": "spark-sdk.activate",
+          "when": "spark-sdk.hasProjectDirectory"
         }
       ]
     },
     "taskDefinitions": [
       {
-        "type": "pixi",
+        "type": "spark-sdk",
         "required": [
           "task"
         ],
