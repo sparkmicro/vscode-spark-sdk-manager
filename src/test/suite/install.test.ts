@@ -54,7 +54,8 @@ suite('Install Task Integration Test Suite', () => {
             environmentVariableCollection: {
                 replace: () => { },
                 clear: () => { }
-            }
+            },
+            subscriptions: []
         } as unknown as vscode.ExtensionContext;
 
         const envManager = new EnvironmentManager(pixiManager, mockContext, outputChannel, mockExec);

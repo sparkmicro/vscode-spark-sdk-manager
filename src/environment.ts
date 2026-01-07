@@ -1139,6 +1139,31 @@ if exist "%SCRIPT_DIR%activate.bat" (
             // This prevents persistent "pollution" (e.g. TERM/TERMINFO) from previous incomplete/bad activations.
             this._context.environmentVariableCollection.clear();
 
+            // Check for and deactivate conflicting micromamba extension environment
+            // We do not check for specific extension IDs (like mamba-org.micromamba) because there are forks (e.g. corker).
+            // Instead, we check if any known deactivation commands exist.
+            try {
+                const commands = await vscode.commands.getCommands(true);
+                const candidates = [
+                    'corker.micromamba.deactivate.environment', // User confirmed this works
+                    'micromamba.deactivate',
+                    'micromamba.deactivateEnvironment'
+                ];
+
+                const commandToRun = candidates.find(c => commands.includes(c));
+
+                if (commandToRun) {
+                    this.log(`Conflicting Micromamba command detected: ${commandToRun}`);
+                    this.log(`Deactivating Micromamba environment...`);
+                    await vscode.commands.executeCommand(commandToRun);
+
+                    // Vital: Wait for Micromamba deactivation to propagate to env collection
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            } catch (e) {
+                this.log(`Error checking/deactivating Micromamba: ${e}`);
+            }
+
             // --- CACHE VARS ---
             if (currentEnv === offlineName) {
                 const cached = this._context.workspaceState.get<any>(EnvironmentManager.cachedEnvKey);
@@ -1219,7 +1244,13 @@ if exist "%SCRIPT_DIR%activate.bat" (
             this.log(`Pixi executable not found.`);
             // Only error if we failed offline AND missed pixi
             if (!silent) {
-                vscode.window.showErrorMessage("Pixi not installed and offline environment not found.");
+                const selection = await vscode.window.showInformationMessage(
+                    "Pixi not found. Would you like to create a new environment?",
+                    "Create Environment"
+                );
+                if (selection === "Create Environment") {
+                    await this.createEnvironment();
+                }
             }
             return;
         }
@@ -1375,6 +1406,14 @@ if exist "%SCRIPT_DIR%activate.bat" (
 
             // 1. Apply Updates from Script
             // We assume the script provides correct paths now that we align with its structure.
+
+            // Generic Sanitization for offline environment too
+            const conflicts = ['VIRTUAL_ENV', 'PYTHONPATH', 'CONDA_DEFAULT_ENV', 'CONDA_PYTHON_EXE', 'CONDA_PROMPT_MODIFIER'];
+            for (const conflict of conflicts) {
+                if (!envUpdates.has(conflict)) {
+                    this._context.environmentVariableCollection.replace(conflict, '');
+                }
+            }
 
             for (const [key, value] of envUpdates) {
                 this.log(`UPDATE: ${key} = ${value}`);

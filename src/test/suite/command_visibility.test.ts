@@ -39,9 +39,18 @@ suite('Command Visibility Context Test Suite', () => {
             showInformationMessage: () => Promise.resolve(),
             showErrorMessage: () => Promise.resolve(),
             showWarningMessage: () => Promise.resolve(),
-            withProgress: (opts: any, task: any) => task({ report: () => {} }),
-            createTerminal: () => ({ show: () => {}, sendText: () => {}, dispose: () => {} })
-        }
+            withProgress: (opts: any, task: any) => task({ report: () => { } }),
+            createTerminal: () => ({ show: () => { }, sendText: () => { }, dispose: () => { } }),
+            createStatusBarItem: () => ({
+                show: () => { },
+                hide: () => { },
+                dispose: () => { },
+                text: '',
+                command: '',
+                tooltip: ''
+            })
+        },
+        StatusBarAlignment: { Left: 1, Right: 2 }
     };
 
     // Mock FS
@@ -79,8 +88,8 @@ suite('Command Visibility Context Test Suite', () => {
     });
 
     test('Initial Context: No .pixi folder -> pixi.hasPixiDirectory = false', () => {
-        const envManager = new EnvironmentManager(new MockPixiManager(), {}, undefined);
-        
+        const envManager = new EnvironmentManager(new MockPixiManager(), { subscriptions: [], workspaceState: { get: () => undefined, update: () => Promise.resolve() } }, undefined);
+
         const setContextCall = recordedCommands.find(c => c.key === 'pixi.hasPixiDirectory');
         assert.ok(setContextCall, 'Should update pixi.hasPixiDirectory context');
         assert.strictEqual(setContextCall!.value, false, 'Should be false when folder is missing');
@@ -88,19 +97,20 @@ suite('Command Visibility Context Test Suite', () => {
 
     test('Initial Context: With .pixi folder -> pixi.hasPixiDirectory = true', () => {
         mockFs['.pixi'] = true; // /mock/workspace/.pixi
-        const envManager = new EnvironmentManager(new MockPixiManager(), {}, undefined);
-        
+        const envManager = new EnvironmentManager(new MockPixiManager(), { subscriptions: [] }, undefined);
+
         const setContextCall = recordedCommands.find(c => c.key === 'pixi.hasPixiDirectory');
         assert.ok(setContextCall, 'Should update pixi.hasPixiDirectory context');
         assert.strictEqual(setContextCall!.value, true, 'Should be true when folder exists');
     });
-    
+
     test('Activate Environment -> pixi.isEnvironmentActive = true', async () => {
         mockFs['.pixi'] = true;
         // Mock context for environment variable collection
         const mockContext = {
-            environmentVariableCollection: { clear: () => {}, replace: () => {} },
-            workspaceState: { get: () => undefined, update: () => Promise.resolve() }
+            environmentVariableCollection: { clear: () => { }, replace: () => { } },
+            workspaceState: { get: () => undefined, update: () => Promise.resolve() },
+            subscriptions: []
         };
 
         const envManager = new EnvironmentManager(new MockPixiManager(), mockContext, undefined);
@@ -112,7 +122,7 @@ suite('Command Visibility Context Test Suite', () => {
             stdout: JSON.stringify({ environment_variables: { FOO: 'BAR' } }),
             stderr: ''
         });
-        
+
         // Mock getEnvironments to return something so activate() works
         envManager.getEnvironments = async () => ['default'];
 
@@ -125,8 +135,9 @@ suite('Command Visibility Context Test Suite', () => {
 
     test('Deactivate Environment -> pixi.isEnvironmentActive = false', async () => {
         const mockContext = {
-            environmentVariableCollection: { clear: () => {}, replace: () => {} },
-            workspaceState: { get: () => 'default', update: () => Promise.resolve() }
+            environmentVariableCollection: { clear: () => { }, replace: () => { } },
+            workspaceState: { get: () => 'default', update: () => Promise.resolve() },
+            subscriptions: []
         };
 
         const envManager = new EnvironmentManager(new MockPixiManager(), mockContext, undefined);
@@ -140,34 +151,34 @@ suite('Command Visibility Context Test Suite', () => {
     });
 
     test('Pixi isInstalled Context Check', async () => {
-         // Mock pixiManager to return false, then true
-         class MutablePixiManager extends MockPixiManager {
-             public installed = false;
-             public override async isPixiInstalled() { return this.installed; }
-         }
-         const px = new MutablePixiManager();
-         const envManager = new EnvironmentManager(px, {}, undefined);
+        // Mock pixiManager to return false, then true
+        class MutablePixiManager extends MockPixiManager {
+            public installed = false;
+            public override async isPixiInstalled() { return this.installed; }
+        }
+        const px = new MutablePixiManager();
+        const envManager = new EnvironmentManager(px, { subscriptions: [] }, undefined);
 
-         // Init: installed = false
-         // We need to wait for the async check in constructor to settle.
-         await new Promise(r => setTimeout(r, 10)); // Yield
+        // Init: installed = false
+        // We need to wait for the async check in constructor to settle.
+        await new Promise(r => setTimeout(r, 10)); // Yield
 
-         let installCall = recordedCommands.find(c => c.key === 'pixi.isPixiInstalled');
-         assert.ok(installCall, 'Should set pixi.isPixiInstalled');
-         assert.strictEqual(installCall?.value, false, 'Should be false initially');
+        let installCall = recordedCommands.find(c => c.key === 'pixi.isPixiInstalled');
+        assert.ok(installCall, 'Should set pixi.isPixiInstalled');
+        assert.strictEqual(installCall?.value, false, 'Should be false initially');
 
-         recordedCommands = [];
-         px.installed = true;
-         // Trigger update
-         // updatePixiContext is private. We can trigger it via createEnvironment or similar, BUT
-         // createEnvironment uses UI.
-         // We can access private method by cast to any (in test)
-         (envManager as any).updatePixiContext();
-         
-         await new Promise(r => setTimeout(r, 10)); // Yield
+        recordedCommands = [];
+        px.installed = true;
+        // Trigger update
+        // updatePixiContext is private. We can trigger it via createEnvironment or similar, BUT
+        // createEnvironment uses UI.
+        // We can access private method by cast to any (in test)
+        (envManager as any).updatePixiContext();
 
-         installCall = recordedCommands.find(c => c.key === 'pixi.isPixiInstalled');
-         assert.ok(installCall, 'Should set pixi.isPixiInstalled');
-         assert.strictEqual(installCall?.value, true, 'Should be true after install');
+        await new Promise(r => setTimeout(r, 10)); // Yield
+
+        installCall = recordedCommands.find(c => c.key === 'pixi.isPixiInstalled');
+        assert.ok(installCall, 'Should set pixi.isPixiInstalled');
+        assert.strictEqual(installCall?.value, true, 'Should be true after install');
     });
 });

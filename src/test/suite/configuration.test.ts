@@ -37,7 +37,8 @@ suite('Configuration Test Suite', () => {
             environmentVariableCollection: {
                 replace: (variable: string, value: string) => { },
                 clear: () => { },
-            }
+            },
+            subscriptions: []
         } as any;
 
         envManager = new EnvironmentManager(pixiManager, context, outputChannel);

@@ -63,7 +63,15 @@ suite('Offline Flow Test Suite', () => {
             showOpenDialog: () => Promise.resolve(showOpenDialogResult),
             onDidCloseTerminal: (listener: (t: any) => void) => {
                 return { dispose: () => { } };
-            }
+            },
+            createStatusBarItem: () => ({
+                show: () => { },
+                hide: () => { },
+                dispose: () => { },
+                text: '',
+                command: '',
+                tooltip: ''
+            })
         },
         ShellExecution: class {
             constructor(public commandLine: string, public options?: any) { }
@@ -87,8 +95,11 @@ suite('Offline Flow Test Suite', () => {
             }
         },
         TaskRevealKind: { Always: 1 },
-        TaskPanelKind: { Dedicated: 1 }
+        TaskPanelKind: { Dedicated: 1 },
+        StatusBarAlignment: { Left: 1, Right: 2 }
     };
+
+
 
     let createdTerminals: any[] = [];
 
@@ -151,7 +162,7 @@ suite('Offline Flow Test Suite', () => {
             return { stdout: '', stderr: '' };
         };
 
-        const envManager = new EnvironmentManager(new MockPixiManager(), {}, undefined, mockExec);
+        const envManager = new EnvironmentManager(new MockPixiManager(), { subscriptions: [] }, undefined, mockExec);
 
         // Setup user inputs:
         // 1. Select 'prod' environment

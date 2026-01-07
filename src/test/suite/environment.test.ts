@@ -21,13 +21,14 @@ suite('Environment Manager Test Suite', () => {
                 replace: (key: string, value: string) => {
                     envVarsReference.set(key, value);
                 },
-                clear: () => { }, 
+                clear: () => { },
                 persistent: true
             },
             workspaceState: {
                 update: () => Promise.resolve(),
                 get: () => undefined
-            }
+            },
+            subscriptions: []
         };
 
         const mockExec = async (cmd: string, opts: any) => {
