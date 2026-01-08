@@ -16,8 +16,8 @@ For a deep dive into how the code works, please see [ARCHITECTURE.md](ARCHITECTU
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/jfchenier/jfchenier-SPARK-Pixi-vscode-extension.git
-    cd jfchenier-SPARK-Pixi-vscode-extension
+    git clone https://github.com/jfchenier/vscode-pixi-environment-manager.git
+    cd vscode-pixi-environment-manager
     ```
 
 2.  **Install Dependencies**:
