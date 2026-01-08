@@ -55,12 +55,12 @@
           "default": true,
           "description": "Automatically check for Pixi updates on startup."
         },
-        "pixi.useGlobalPixi": {
+        "spark-sdk.useGlobalPixi": {
           "type": "boolean",
           "default": false,
           "description": "If true, the extension will use the globally installed 'pixi' executable instead of the local one."
         },
-        "pixi.showDefaultEnvironment": {
+        "spark-sdk.showDefaultEnvironment": {
           "type": "boolean",
           "default": false,
           "description": "If true, the 'default' environment will be included in the environment selection list."

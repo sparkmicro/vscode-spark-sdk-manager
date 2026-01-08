@@ -1479,7 +1479,7 @@ if exist "%SCRIPT_DIR%activate.bat" (
             } else {
                 console.log('Pixi environment activated silently.');
             }
-            vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', true);
+            vscode.commands.executeCommand('setContext', 'spark-sdk.isEnvironmentActive', true);
             this.updateStatusBar(envName || 'default');
 
         } catch (e: any) {
