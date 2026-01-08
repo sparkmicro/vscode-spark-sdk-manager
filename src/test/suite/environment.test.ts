@@ -120,7 +120,8 @@ suite('Environment Manager Test Suite', () => {
                     storedEnv = value;
                     return Promise.resolve();
                 }
-            }
+            },
+            subscriptions: []
         };
 
         const mockExec = async (cmd: string, opts: any) => {
@@ -167,7 +168,8 @@ suite('Environment Manager Test Suite', () => {
                     if (key === 'pixiSelectedEnvironment') storedEnv = value;
                     return Promise.resolve();
                 }
-            }
+            },
+            subscriptions: []
         };
 
         const mockPixi = new MockPixiManager();

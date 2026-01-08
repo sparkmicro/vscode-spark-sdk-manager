@@ -57,7 +57,8 @@ suite('Terminal Variables Test Suite', () => {
                     return undefined;
                 },
                 update: () => Promise.resolve()
-            }
+            },
+            subscriptions: []
         };
 
         const mockExec = async () => ({ stdout: '', stderr: '' });
@@ -79,11 +80,11 @@ suite('Terminal Variables Test Suite', () => {
 
         // Assertions
         assert.strictEqual(clearCalled, true, 'EnvironmentVariableCollection.clear() should be called start of activation');
-        
+
         // TERM should be GONE (cleared from initial state, and skipped during cache apply)
         assert.strictEqual(storedVars.has('TERM'), false, 'TERM should be removed from collection');
         assert.strictEqual(storedVars.has('TERMINFO'), false, 'TERMINFO should be removed from collection');
-        
+
         // PATH should be present
         assert.strictEqual(storedVars.get('PATH'), '/new/path', 'Valid variables should be applied');
     });

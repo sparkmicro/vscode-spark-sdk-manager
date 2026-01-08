@@ -37,7 +37,8 @@ suite('Script Generation Test Suite', () => {
             environmentVariableCollection: {
                 replace: () => { },
                 clear: () => { }
-            }
+            },
+            subscriptions: []
         } as unknown as vscode.ExtensionContext;
 
         const envManager = new EnvironmentManager(pixiManager, mockContext, outputChannel, mockExec);
@@ -64,7 +65,11 @@ suite('Script Generation Test Suite', () => {
     test('generateActivationScripts does not overwrite existing', async () => {
         const outputChannel = vscode.window.createOutputChannel("Pixi Test");
         const pixiManager = new PixiManager(outputChannel);
-        const mockContext = { environmentVariableCollection: { clear: () => { } } } as any;
+        const mockContext = {
+            environmentVariableCollection: { clear: () => { } },
+            workspaceState: { get: () => undefined, update: () => Promise.resolve() },
+            subscriptions: []
+        } as any;
         const envManager = new EnvironmentManager(pixiManager, mockContext, outputChannel, mockExec);
 
         const uri = vscode.Uri.file(sandboxDir);

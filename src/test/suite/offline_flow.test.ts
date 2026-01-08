@@ -162,7 +162,13 @@ suite('Offline Flow Test Suite', () => {
             return { stdout: '', stderr: '' };
         };
 
-        const envManager = new EnvironmentManager(new MockPixiManager(), { subscriptions: [] }, undefined, mockExec);
+        const envManager = new EnvironmentManager(new MockPixiManager(), {
+            subscriptions: [],
+            workspaceState: {
+                get: (key: string) => undefined,
+                update: () => Promise.resolve()
+            }
+        } as any, undefined, mockExec);
 
         // Setup user inputs:
         // 1. Select 'prod' environment
@@ -209,7 +215,8 @@ suite('Offline Flow Test Suite', () => {
         // Mock context for activation side-effects
         const mockContext = {
             environmentVariableCollection: { clear: () => { }, replace: () => { } },
-            workspaceState: { get: () => undefined, update: () => Promise.resolve() }
+            workspaceState: { get: () => undefined, update: () => Promise.resolve() },
+            subscriptions: []
         };
 
         const envManager = new EnvironmentManager(new MockPixiManager(), mockContext, undefined, mockExec);
@@ -253,7 +260,8 @@ suite('Offline Flow Test Suite', () => {
         };
         const mockContext = {
             environmentVariableCollection: { clear: () => { }, replace: () => { } },
-            workspaceState: { get: () => undefined, update: () => Promise.resolve() }
+            workspaceState: { get: () => undefined, update: () => Promise.resolve() },
+            subscriptions: []
         };
 
         const envManager = new EnvironmentManager(new MockPixiManager(), mockContext, undefined, mockExec);

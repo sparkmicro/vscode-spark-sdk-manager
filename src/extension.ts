@@ -49,6 +49,13 @@ export async function activate(context: vscode.ExtensionContext) {
     // Auto-activate saved environment
     await envManager.autoActivate();
 
+    // Listen for configuration changes to trigger auto-activation if defaultEnvironment changes
+    context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+        if (e.affectsConfiguration('pixi.defaultEnvironment')) {
+            envManager.autoActivate();
+        }
+    }));
+
     // Check for updates (non-blocking)
     pixiManager.checkUpdate(context).catch(e => {
         console.error("Failed to check for updates:", e);

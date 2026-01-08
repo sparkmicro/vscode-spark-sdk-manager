@@ -97,7 +97,10 @@ suite('Command Visibility Context Test Suite', () => {
 
     test('Initial Context: With .pixi folder -> pixi.hasPixiDirectory = true', () => {
         mockFs['.pixi'] = true; // /mock/workspace/.pixi
-        const envManager = new EnvironmentManager(new MockPixiManager(), { subscriptions: [] }, undefined);
+        const envManager = new EnvironmentManager(new MockPixiManager(), {
+            subscriptions: [],
+            workspaceState: { get: () => undefined, update: () => Promise.resolve() }
+        }, undefined);
 
         const setContextCall = recordedCommands.find(c => c.key === 'pixi.hasPixiDirectory');
         assert.ok(setContextCall, 'Should update pixi.hasPixiDirectory context');
@@ -157,7 +160,10 @@ suite('Command Visibility Context Test Suite', () => {
             public override async isPixiInstalled() { return this.installed; }
         }
         const px = new MutablePixiManager();
-        const envManager = new EnvironmentManager(px, { subscriptions: [] }, undefined);
+        const envManager = new EnvironmentManager(px, {
+            subscriptions: [],
+            workspaceState: { get: () => undefined, update: () => Promise.resolve() }
+        }, undefined);
 
         // Init: installed = false
         // We need to wait for the async check in constructor to settle.
