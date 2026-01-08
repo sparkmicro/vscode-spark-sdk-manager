@@ -1,4 +1,3 @@
-
 import * as vscode from 'vscode';
 import { PixiManager } from './pixi';
 import { EnvironmentManager } from './environment';
