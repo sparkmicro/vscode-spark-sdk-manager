@@ -313,29 +313,7 @@ export class EnvironmentManager {
             }
             vscode.commands.executeCommand('setContext', 'pixi.isEnvironmentActive', true);
 
-            // Setup Terminal Prompt Listener (Windows PowerShell specific workaround)
-            if (process.platform === 'win32') {
-                if (this._terminalListener) {
-                    this._terminalListener.dispose();
-                }
-                this._terminalListener = vscode.window.onDidOpenTerminal(async (terminal: vscode.Terminal) => {
-                    // Double check if environment is still active
-                    if (!this._context.workspaceState.get(EnvironmentManager.envStateKey)) return;
 
-                    // Avoid injecting into our own temporary install terminals
-                    if (terminal.name.startsWith("Pixi Install") || terminal.name.startsWith("Pixi Pack")) return;
-
-                    // We rely on the fact that if environmentVariableCollection is set, the terminal SHOULD have the vars.
-                    // But we can't check terminal vars easily.
-                    // Flattened command to avoid multiline paste issues
-                    const updatePromptCmd = `if (Test-Path Env:\\PIXI_PROMPT) { if (-not (Test-Path Function:\\Global:Prompt_Backup)) { $Global:Prompt_Backup = $function:prompt }; function Global:prompt { Write-Host -NoNewline "$($env:PIXI_PROMPT) "; & $Global:Prompt_Backup } }`;
-
-                    // Delay to ensure the terminal shell and VS Code shell integration have fully loaded
-                    setTimeout(() => {
-                        terminal.sendText(`${updatePromptCmd}; Clear-Host`);
-                    }, 1000);
-                });
-            }
 
         } catch (e: any) {
             if (!silent) {
@@ -1160,10 +1138,14 @@ if exist "%SCRIPT_DIR%activate.bat" (
                 const envDir = path.join(workspaceRoot, '.pixi', 'envs', offlineName);
                 if (fs.existsSync(envDir)) {
                     this.log(`Offline env found. Activating...`);
-                    await this.activateOfflineEnvironment(envDir, offlineName, silent);
-                    return;
+                    const handled = await this.activateOfflineEnvironment(envDir, offlineName, silent);
+                    if (handled) {
+                        return;
+                    }
                 }
                 // If offline configured but not found, warn? Or fall through?
+                // If we fell through (handled == false), it means script missing.
+                // Fall through to standard check.
                 // Let's warn if silent is false, then fall through.
                 if (!silent) {
                     vscode.window.showWarningMessage(`Offline environment '${offlineName}' not found using standard activation.`);
@@ -1190,7 +1172,12 @@ if exist "%SCRIPT_DIR%activate.bat" (
                         // Trigger logic directly
                         if (workspaceRoot) {
                             const envDir = path.join(workspaceRoot, '.pixi', 'envs', offlineName);
-                            await this.activateOfflineEnvironment(envDir, offlineName, silent);
+                            const handled = await this.activateOfflineEnvironment(envDir, offlineName, silent);
+                            if (handled) return;
+                        }
+                        // Fallback if not handled (shouldn't happen if user picked it from "offline detected", but safe)
+                        if (!silent) {
+                            vscode.window.showErrorMessage(`Offline environment script not found for '${offlineName}'.`);
                         }
                         return;
                     }
@@ -1200,9 +1187,10 @@ if exist "%SCRIPT_DIR%activate.bat" (
                     await this._context.workspaceState.update(EnvironmentManager.envStateKey, offlineName);
                     if (workspaceRoot) {
                         const envDir = path.join(workspaceRoot, '.pixi', 'envs', offlineName);
-                        await this.activateOfflineEnvironment(envDir, offlineName, silent);
+                        const handled = await this.activateOfflineEnvironment(envDir, offlineName, silent);
+                        if (handled) return;
                     }
-                    return;
+                    // If not handled, fall through to return
                 }
             }
 
@@ -1248,9 +1236,11 @@ if exist "%SCRIPT_DIR%activate.bat" (
             if (selectedEnv === offlineName) {
                 if (workspaceRoot) {
                     const envDir = path.join(workspaceRoot, '.pixi', 'envs', offlineName);
-                    await this.activateOfflineEnvironment(envDir, offlineName, silent);
+                    const handled = await this.activateOfflineEnvironment(envDir, offlineName, silent);
+                    if (handled) return;
                 }
-                return;
+                // If not handled (return false), it means script missing.
+                // Fall through to doActivate to try standard activation for this name.
             }
         }
 
@@ -1259,7 +1249,7 @@ if exist "%SCRIPT_DIR%activate.bat" (
 
     // ... (rest of methods)
 
-    private async activateOfflineEnvironment(envDir: string, envName: string, silent: boolean = false) {
+    private async activateOfflineEnvironment(envDir: string, envName: string, silent: boolean = false): Promise<boolean> {
         // Find activation script. User specifies it resides in the parent directory (e.g. .pixi/envs/activate.sh)
         // rather than inside the specific environment folder.
         let scriptPath = '';
@@ -1276,8 +1266,8 @@ if exist "%SCRIPT_DIR%activate.bat" (
         }
 
         if (!scriptPath) {
-            vscode.window.showErrorMessage(`No activation script (activate.sh/bat/ps1) found in ${envDir} or ${envDir}/env.`);
-            return;
+            // Fallback: If no script found, return false to let caller handle regular activation (or error)
+            return false;
         }
 
         this.log(`Activating offline environment '${envName}' using ${scriptPath}`);
@@ -1409,6 +1399,7 @@ if exist "%SCRIPT_DIR%activate.bat" (
             }
             this.log(`Offline activation error: ${e.message}`);
         }
+        return true;
     }
 
 
