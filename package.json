@@ -9,7 +9,7 @@
     "url": "https://github.com/sparkmicro/vscode-spark-sdk-manager.git"
   },
   "license": "MIT",
-  "version": "0.0.24",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -19,6 +19,12 @@
   "activationEvents": [
     "workspaceContains:pixi.toml",
     "workspaceContains:.pixi"
+  ],
+  "extensionPack": [
+    "marus25.cortex-debug",
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools",
+    "rioj7.command-variable"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -64,7 +70,7 @@
           "default": false,
           "description": "If true, suppresses prompts when the Pixi environment (lockfile) is out of sync with the manifest."
         },
-        "pixi.ignoredEnvironments": {
+        "spark-sdk.ignoredEnvironments": {
           "type": "array",
           "items": {
             "type": "string"
