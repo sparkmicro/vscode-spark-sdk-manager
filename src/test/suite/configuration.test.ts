@@ -44,7 +44,7 @@ suite('Configuration Test Suite', () => {
         envManager = new EnvironmentManager(pixiManager, context, outputChannel);
 
         // Mock getEnvironments
-        (envManager as any).getEnvironments = async () => ['default', 'test', 'spark'];
+        (envManager as any).getEnvironments = async () => ['default', 'test', 'pixi'];
         // Mock activate
         (envManager as any).activate = async () => { };
         // Mock getWorkspaceFolderURI
@@ -88,7 +88,7 @@ suite('Configuration Test Suite', () => {
     });
 
     test('autoActivate trusts config if getEnvironments returns empty', async () => {
-        // Setup: State is empty, Config is 'spark', getEnvironments returns []
+        // Setup: State is empty, Config is 'pixi', getEnvironments returns []
         workspaceState['pixiSelectedEnvironment'] = undefined;
         // Mock config (cannot easily mock via vscode, assuming manual verify or rely on fallback logic logic path if we could inject config)
         // With our current test setup, we rely on the fact that we can't fully mock vscode.workspace.getConfiguration.

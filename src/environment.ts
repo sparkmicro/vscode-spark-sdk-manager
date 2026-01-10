@@ -125,9 +125,13 @@ export class EnvironmentManager {
             });
             const info = JSON.parse(stdout); // Need a type?
             if (info.environments_info && Array.isArray(info.environments_info)) {
+
+                const config = vscode.workspace.getConfiguration('pixi');
+                const showDefault = config.get<boolean>('showDefaultEnvironment', false);
+
                 return info.environments_info
                     .map((e: any) => e.name)
-                    .filter((n: string) => n !== 'default');
+                    .filter((n: string) => showDefault || n !== 'default');
             }
             return [];
         } catch (e) {

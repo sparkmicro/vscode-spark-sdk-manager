@@ -9,7 +9,7 @@
     "url": "https://github.com/jfchenier/vscode-pixi-environment-manager.git"
   },
   "license": "MIT",
-  "version": "0.0.13",
+  "version": "0.0.16",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -48,6 +48,16 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically check for Pixi updates on startup."
+        },
+        "pixi.useGlobalPixi": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, the extension will use the globally installed 'pixi' executable instead of the local one."
+        },
+        "pixi.showDefaultEnvironment": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, the 'default' environment will be included in the environment selection list."
         }
       }
     },

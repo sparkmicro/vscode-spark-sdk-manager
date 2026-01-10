@@ -46,8 +46,12 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(generateOfflineDisposable);
     context.subscriptions.push(generateScriptsDisposable);
 
+    // Check for global pixi
+    pixiManager.checkAndPromptGlobalPixi(context);
+
     // Auto-activate saved environment
     await envManager.autoActivate();
+
 
     // Listen for configuration changes to trigger auto-activation if defaultEnvironment changes
     context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {

@@ -67,6 +67,7 @@ export class PixiManager {
     private _workspaceUri: vscode.Uri | undefined;
     private _pixiName: string;
     private _outputChannel: vscode.OutputChannel | undefined;
+    private _globalCheckPromise: Promise<void> | undefined;
 
     constructor(outputChannel?: vscode.OutputChannel) {
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
@@ -83,6 +84,20 @@ export class PixiManager {
     }
 
     public getPixiPath(): string | undefined {
+        const config = vscode.workspace.getConfiguration('pixi');
+        const useGlobal = config.get<boolean>('useGlobalPixi', false);
+
+        if (useGlobal) {
+            // Return 'pixi' to rely on system PATH, or resolve it?
+            // "pixi" is simpler but might fail if PATH isn't propagated to VSCode perfectly.
+            // But 'pixi' usually works in terminal.
+            // However, child_process.exec might need full path?
+            // Let's assume 'pixi' works if in path.
+            // Or better: try to find it?
+            // For now, let's return 'pixi'.
+            return this._pixiName; // 'pixi' or 'pixi.exe'
+        }
+
         if (!this._workspaceUri) {
             return undefined;
         }
@@ -94,12 +109,87 @@ export class PixiManager {
         if (!pixiPath) {
             return false;
         }
+
+        // If global, check simple execution
+        if (pixiPath === this._pixiName) {
+            try {
+                // Check if 'pixi --version' works
+                await execAsync(`"${pixiPath}" --version`);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+
         try {
             await fs.promises.access(pixiPath, fs.constants.X_OK);
             return true;
         } catch {
             return false;
         }
+    }
+
+    public async checkAndPromptGlobalPixi(context: vscode.ExtensionContext): Promise<void> {
+        if (this._globalCheckPromise) {
+            return this._globalCheckPromise;
+        }
+
+        this._globalCheckPromise = (async () => {
+            const config = vscode.workspace.getConfiguration('pixi');
+            const useGlobal = config.get<boolean>('useGlobalPixi', false);
+
+            if (useGlobal) {
+                // Already using global, nothing to do
+                return;
+            }
+
+            // Check if ignored
+            const ignoreKey = 'pixi.ignoreGlobalPixi';
+            if (context.globalState.get<boolean>(ignoreKey)) {
+                return;
+            }
+
+            // Check if global pixi exists
+            // We use a separate check here because getPixiPath points to local by default
+            const globalName = this._pixiName;
+            try {
+                await execAsync(`"${globalName}" --version`);
+
+                // It exists! Prompt user.
+                const selection = await vscode.window.showInformationMessage(
+                    "A global installation of Pixi was detected. Would you like to use it instead of the local version?",
+                    "Yes",
+                    "No (Use Local)",
+                    "Later"
+                );
+
+                if (selection === "Yes") {
+                    await config.update('useGlobalPixi', true, vscode.ConfigurationTarget.Global);
+
+                    const autoReload = config.get<boolean>('autoReload');
+                    if (autoReload) {
+                        vscode.window.showInformationMessage("Switched to Global Pixi. Reloading window...");
+                        vscode.commands.executeCommand("workbench.action.reloadWindow");
+                    } else {
+                        const reloadSelection = await vscode.window.showInformationMessage(
+                            "Switched to Global Pixi. Reload window to apply changes?",
+                            "Reload"
+                        );
+                        if (reloadSelection === "Reload") {
+                            vscode.commands.executeCommand("workbench.action.reloadWindow");
+                        }
+                    }
+                } else if (selection === "No (Use Local)") {
+                    await context.globalState.update(ignoreKey, true);
+                }
+                // Later: Do nothing
+            } catch {
+                // Global pixi not found
+                return;
+            }
+        })();
+
+        return this._globalCheckPromise;
     }
 
     public async ensurePixi(): Promise<void> {
@@ -110,6 +200,27 @@ export class PixiManager {
     }
 
     public async installPixi(): Promise<void> {
+        if (this._globalCheckPromise) {
+            await this._globalCheckPromise;
+        }
+
+        // Check if we are supposed to be using global pixi
+        const config = vscode.workspace.getConfiguration('pixi');
+        if (config.get<boolean>('useGlobalPixi')) {
+            const selection = await vscode.window.showErrorMessage(
+                "Global Pixi executable not found. Would you like to disable the 'Use Global Pixi' setting and install Pixi locally?",
+                "Disable & Install Locally",
+                "Cancel"
+            );
+
+            if (selection === "Disable & Install Locally") {
+                await config.update('useGlobalPixi', false, vscode.ConfigurationTarget.Global);
+                // Proceed with local installation
+            } else {
+                throw new Error("Global Pixi not found and local installation cancelled.");
+            }
+        }
+
         if (!this._workspaceUri) {
             throw new Error('No workspace folder open.');
         }

@@ -34,7 +34,7 @@ suite('Environment Manager Test Suite', () => {
         const mockExec = async (cmd: string, opts: any) => {
             if (cmd.includes('info --json')) {
                 return {
-                    stdout: JSON.stringify({ environments_info: [{ name: 'default' }, { name: 'spark' }] }),
+                    stdout: JSON.stringify({ environments_info: [{ name: 'default' }, { name: 'pixi' }] }),
                     stderr: ''
                 };
             }
@@ -65,32 +65,6 @@ suite('Environment Manager Test Suite', () => {
 
         const envManager = new TestEnvironmentManager(mockPixi, mockContext, undefined, mockExec);
 
-        // We need to mock vscode.workspace.workspaceFolders
-        // But we can't easily write to `vscode` namespace in this test runner context safely without affecting others?
-        // Actually `vscode` is available.
-        // If we can't mock workspaceFolders, `activate` might fail on `cwd`.
-        // Let's modify activate to handle no workspace or let's assume one exists in the test runner.
-        // We will try running it. If it fails due to no workspace, we'll need to mock `vscode.workspace`.
-        // Mocking `vscode` is hard.
-
-        // Workaround: We ignore CWD in our mockExec. `activate` accesses `workspaceFolders![0]`.
-        // The real test runner usually opens a window with NO folder if not specified.
-        // We can just try-catch the workspace access or wrap it.
-
-        // Since we are mocking exec, and logic depends on workspace presence mainly for CWD.
-        // "if (!vscode.workspace.workspaceFolders)" check is likely? 
-        // Method `activate` doesn't check it before `shell-hook`, it assumes it?
-        // Let's check environment.ts: "const pixiPath = ...".
-        // It uses `cwd: vscode.workspace.workspaceFolders![0].uri.fsPath`. This will throw if undefined.
-
-        // We cannot stub vscode properties easily.
-        // Assertions will fail if we can't run the code.
-        // Let's skip the test if we can't run it locally, but the USER needs it.
-        // Wait, I can execute `activate` but it fails.
-        // I will rely on `MockContext` receiving the updates if I can bypass `cwd`.
-
-        // Let's add a safe check in `activate`.
-
         await envManager.activate(true);
 
         assert.strictEqual(envVarsReference.get('CONDA_PREFIX'), '/pixi/env');
@@ -102,7 +76,7 @@ suite('Environment Manager Test Suite', () => {
 
     test('AutoActivate restores environment from state', async () => {
         const envVarsReference = new Map<string, string>();
-        let storedEnv = 'spark';
+        let storedEnv = 'pixi';
         const mockContext: any = {
             environmentVariableCollection: {
                 replace: (key: string, value: string) => {
@@ -128,8 +102,8 @@ suite('Environment Manager Test Suite', () => {
             return {
                 stdout: JSON.stringify({
                     environment_variables: {
-                        PATH: "/pixi/env/spark/bin:/usr/bin",
-                        CONDA_PREFIX: "/pixi/env/spark"
+                        PATH: "/pixi/env/pixi/bin:/usr/bin",
+                        CONDA_PREFIX: "/pixi/env/pixi"
                     }
                 }),
                 stderr: ''
@@ -147,11 +121,70 @@ suite('Environment Manager Test Suite', () => {
         const envManager = new TestEnvironmentManager(mockPixi, mockContext, undefined, mockExec);
         await envManager.autoActivate();
 
-        assert.strictEqual(envVarsReference.get('CONDA_PREFIX'), '/pixi/env/spark');
+        assert.strictEqual(envVarsReference.get('CONDA_PREFIX'), '/pixi/env/pixi');
+    });
+
+    test('getEnvironments respects showDefaultEnvironment setting', async () => {
+        const mockExec = async (cmd: string) => {
+            return {
+                stdout: JSON.stringify({
+                    environments_info: [
+                        { name: 'default' },
+                        { name: 'other' }
+                    ]
+                }),
+                stderr: ''
+            };
+        };
+
+        const mockPixi = new MockPixiManager();
+        mockPixi.getPixiPath = () => '/mock/workspace/.pixi/bin/pixi';
+
+        const mockContext: any = {
+            environmentVariableCollection: {
+                replace: () => { },
+                clear: () => { },
+                persistent: true
+            },
+            workspaceState: {
+                get: () => undefined,
+                update: () => Promise.resolve()
+            },
+            subscriptions: []
+        };
+
+        class TestEnvironmentManager extends EnvironmentManager {
+            public override getWorkspaceFolderURI(): vscode.Uri {
+                return vscode.Uri.file('/mock/workspace');
+            }
+        }
+
+        const envManager = new TestEnvironmentManager(mockPixi, mockContext, undefined);
+        (envManager as any)._exec = mockExec;
+
+        // Ensure config is false initially
+        const config = vscode.workspace.getConfiguration('pixi');
+        await config.update('showDefaultEnvironment', false, vscode.ConfigurationTarget.Global);
+
+        // Test Default (False)
+        const envsFiltered = await (envManager as any).getEnvironments();
+        assert.ok(!envsFiltered.includes('default'), 'Should filter default by default');
+        assert.ok(envsFiltered.includes('other'), 'Should keep other');
+
+        // Update Config to True
+        await config.update('showDefaultEnvironment', true, vscode.ConfigurationTarget.Global);
+
+        // Test True
+        const envsShown = await (envManager as any).getEnvironments();
+        assert.ok(envsShown.includes('default'), 'Should show default if configured');
+        assert.ok(envsShown.includes('other'), 'Should keep other');
+
+        // Cleanup
+        await config.update('showDefaultEnvironment', undefined, vscode.ConfigurationTarget.Global);
     });
 
     test('Deactivate clears environment and state', async () => {
-        let storedEnv: string | undefined = 'spark';
+        let storedEnv: string | undefined = 'pixi';
         let clearCalled = false;
 
         const mockContext: any = {
