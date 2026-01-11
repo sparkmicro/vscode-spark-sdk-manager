@@ -1,6 +1,6 @@
 
 import * as assert from 'assert';
- 
+
 const proxyquire = require('proxyquire').noCallThru();
 
 suite('Global Pixi Support Test Suite', () => {
@@ -30,7 +30,7 @@ suite('Global Pixi Support Test Suite', () => {
             showInformationMessage: async (msg: string, ...items: string[]) => {
                 showMessageCalls.push(msg);
                 // Simulate user selecting "Yes" if msg contains "global"
-                if (msg.includes('global installation')) {return 'Yes' as any;}
+                if (msg.includes('global installation')) { return 'Yes' as any; }
                 return undefined;
             },
             createOutputChannel: () => ({ appendLine: () => { } }) as any,
@@ -126,7 +126,7 @@ suite('Global Pixi Support Test Suite', () => {
     });
 
     test('checkAndPromptGlobalPixi DOES NOT prompt if ignored', async () => {
-        mockGlobalState['pixi.ignoreGlobalPixi'] = true;
+        mockGlobalState['spark-sdk.ignoreGlobalPixi'] = true;
         const pm = new PixiManager();
         const contextMock = {
             globalState: {
@@ -195,7 +195,7 @@ suite('Global Pixi Support Test Suite', () => {
         // Mock window to capture second prompt
         const originalShowInfo = vscodeMock.window.showInformationMessage;
         vscodeMock.window.showInformationMessage = async (msg: string, ...items: string[]) => {
-            if (msg.includes('global installation')) {return 'Yes';}
+            if (msg.includes('global installation')) { return 'Yes'; }
             if (msg.includes('Reload window')) {
                 reloadPromptShown = true;
                 return 'Reload';
