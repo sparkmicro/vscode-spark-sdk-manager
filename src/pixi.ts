@@ -84,7 +84,7 @@ export class PixiManager {
     }
 
     public getPixiPath(): string | undefined {
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         const useGlobal = config.get<boolean>('useGlobalPixi', false);
 
         if (useGlobal) {
@@ -135,7 +135,7 @@ export class PixiManager {
         }
 
         this._globalCheckPromise = (async () => {
-            const config = vscode.workspace.getConfiguration('pixi');
+            const config = vscode.workspace.getConfiguration('spark-sdk');
             const useGlobal = config.get<boolean>('useGlobalPixi', false);
 
             if (useGlobal) {
@@ -144,7 +144,7 @@ export class PixiManager {
             }
 
             // Check if ignored
-            const ignoreKey = 'pixi.ignoreGlobalPixi';
+            const ignoreKey = 'spark-sdk.ignoreGlobalPixi';
             if (context.globalState.get<boolean>(ignoreKey)) {
                 return;
             }
@@ -205,7 +205,7 @@ export class PixiManager {
         }
 
         // Check if we are supposed to be using global pixi
-        const config = vscode.workspace.getConfiguration('pixi');
+        const config = vscode.workspace.getConfiguration('spark-sdk');
         if (config.get<boolean>('useGlobalPixi')) {
             const selection = await vscode.window.showErrorMessage(
                 "Global Pixi executable not found. Would you like to disable the 'Use Global Pixi' setting and install Pixi locally?",

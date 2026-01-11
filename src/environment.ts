@@ -126,7 +126,7 @@ export class EnvironmentManager {
             const info = JSON.parse(stdout); // Need a type?
             if (info.environments_info && Array.isArray(info.environments_info)) {
 
-                const config = vscode.workspace.getConfiguration('pixi');
+                const config = vscode.workspace.getConfiguration('spark-sdk');
                 const showDefault = config.get<boolean>('showDefaultEnvironment', false);
 
                 return info.environments_info
