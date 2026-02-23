@@ -4,6 +4,8 @@
 
 This extension integrates the SPARK SDK toolchain into VS Code, leveraging [pixi](https://prefix.dev/) to manage reproducible development environments for SPARK Wireless Core and Audio Core applications.
 
+⚠️ **WARNING**: This extension requires **SPARK SDK 2.3 or above**. Earlier versions are not supported.
+
 ## Features
 
 *   **Automatic Bootstrapping**: Automatically downloads and installs the internal toolchain manager (Pixi) if it's not present, making onboarding new developers effortless.
@@ -45,9 +47,6 @@ For detailed instructions on using the SPARK SDK, please visit the official docu
 *   `spark-sdk.autoReload`: Automatically reload the window after activation to ensure all extensions pick up changes.
 
 ## ⚖️ Legal & Attribution
-
-**Disclaimer**:
-This extension is **not** affiliated with, endorsed by, or associated with **prefix.dev** or the **Pixi** project. It is an independent open-source tool designed to help developers use Pixi within VS Code.
 
 **Third-Party Software**:
 This extension downloads and uses the **Pixi** executable to manage environments.
