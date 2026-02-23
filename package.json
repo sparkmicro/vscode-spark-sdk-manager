@@ -9,7 +9,8 @@
     "url": "https://github.com/sparkmicro/vscode-spark-sdk-manager.git"
   },
   "license": "MIT",
-  "version": "0.0.14",
+  "version": "0.0.15",
+  "preview": true,
   "engines": {
     "vscode": "^1.90.0"
   },
